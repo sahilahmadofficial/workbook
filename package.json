@@ -1,0 +1,109 @@
+{
+  "name": "workbook",
+  "version": "1.0.0",
+  "description": "A minimal, professional task management application",
+  "main": "electron/main.js",
+  "homepage": "https://github.com/sahilahmad6569/workbook",
+  "author": {
+    "name": "Sahil Ahmad",
+    "email": "sahil.ahmad.dev@gmail.com"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "electron:dev": "concurrently \"npm run dev\" \"wait-on http://localhost:5173 && electron . --dev\"",
+    "electron:build": "npm run build && electron-builder",
+    "build:linux": "npm run build && electron-builder --linux",
+    "build:linux:deb": "npm run build && electron-builder --linux deb",
+    "build:linux:appimage": "npm run build && electron-builder --linux AppImage",
+    "build:win": "npm run build && electron-builder --win",
+    "build:all": "npm run build && electron-builder --linux --win"
+  },
+  "keywords": [
+    "task-management",
+    "productivity",
+    "electron"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "firebase": "^12.9.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "@vitejs/plugin-react": "^4.2.0",
+    "concurrently": "^8.2.0",
+    "electron": "^28.0.0",
+    "electron-builder": "^24.9.0",
+    "vite": "^5.0.0",
+    "wait-on": "^7.2.0"
+  },
+  "build": {
+    "appId": "com.workbook.app",
+    "productName": "WorkBook",
+    "directories": {
+      "output": "dist-electron"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*"
+    ],
+    "mac": {
+      "category": "public.app-category.productivity"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "WorkBook"
+    },
+    "linux": {
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "deb",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "category": "Utility",
+      "maintainer": "Sahil Ahmad <sahil.ahmad.dev@gmail.com>",
+      "executableArgs": [
+        "--no-sandbox"
+      ],
+      "desktop": {
+        "entry": {
+          "StartupWMClass": "WorkBook"
+        }
+      },
+      "icon": "build/icon.png"
+    }
+  }
+}

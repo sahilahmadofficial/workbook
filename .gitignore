@@ -1,0 +1,108 @@
+# ========================
+# Dependencies
+# ========================
+node_modules/
+.pnp
+.pnp.js
+
+# ========================
+# Testing
+# ========================
+coverage/
+
+# ========================
+# Production / Build Output
+# ========================
+dist/
+dist-electron/
+build/
+out/
+app-builds/
+release/
+
+# ========================
+# Electron Builder Artifacts
+# ========================
+dist-electron/__appImage-x64/
+dist-electron/linux-unpacked/
+dist-electron/builder-debug.yml
+dist-electron/builder-effective-config.yaml
+*.dmg
+*.pkg
+*.deb
+*.rpm
+*.exe
+*.AppImage
+*.snap
+*.blockmap
+*.yml.sig
+
+# ========================
+# Environment Variables
+# ========================
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.env
+
+# ========================
+# Firebase
+# ========================
+.firebase/
+.firebaserc
+firebase-debug.log
+firebase-debug.*.log
+firestore-debug.log
+ui-debug.log
+
+# ========================
+# TypeScript
+# ========================
+*.tsbuildinfo
+
+# ========================
+# Vite
+# ========================
+vite.config.js.timestamp-*
+vite.config.ts.timestamp-*
+
+# ========================
+# Logs
+# ========================
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+*.log
+
+# ========================
+# Cache / Temp
+# ========================
+.cache/
+.temp/
+tmp/
+*.tmp
+.eslintcache
+.stylelintcache
+
+# ========================
+# Editor Directories and Files
+# ========================
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# ========================
+# OS Generated Files
+# ========================
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
