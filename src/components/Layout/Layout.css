@@ -81,3 +81,41 @@
   overflow: hidden;
   background: var(--color-bg);
 }
+
+/* Header actions container */
+.layout__header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+/* Close button styles */
+.layout__close-button {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-base);
+  padding: 0;
+}
+
+.layout__close-button:hover {
+  background: var(--color-bg);
+  border-color: var(--color-text-secondary);
+  color: var(--color-text-primary);
+}
+
+.layout__close-button:active {
+  transform: scale(0.95);
+  background: var(--color-border);
+}
+
+.layout__close-button svg {
+  pointer-events: none;
+}

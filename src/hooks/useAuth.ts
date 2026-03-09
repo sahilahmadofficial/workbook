@@ -11,16 +11,12 @@ import {
 } from 'firebase/auth';
 import { auth } from '../config/firebase';
 
-// Vite exposes .env variables on import.meta.env.
-// Declare the shape here so TypeScript doesn't complain.
 declare global {
   interface ImportMeta {
     env: Record<string, string | undefined>;
   }
 }
 
-// Detect packaged Electron: renderer runs under app:// or file://.
-// In dev mode it runs on http://localhost, so the normal popup still works.
 const isElectron = (): boolean =>
   typeof window !== 'undefined' &&
   (window.location.protocol === 'file:' ||
@@ -83,11 +79,9 @@ export function useAuth(): UseAuthReturn {
     try {
       setError(null);
       setLoading(true);
-
       if (isElectron()) {
         await signInWithGoogleElectron();
       } else {
-        // Dev / web: standard Firebase popup works on http://localhost
         const provider = new GoogleAuthProvider();
         await signInWithPopup(auth, provider);
       }
@@ -117,40 +111,24 @@ export function useAuth(): UseAuthReturn {
 }
 
 // ---------------------------------------------------------------------------
-// Electron Google Sign-In  (PKCE loopback flow — RFC 8252)
-// ---------------------------------------------------------------------------
+// Electron Google Sign-In (PKCE loopback flow)
 //
-// WHY TWO CLIENT IDs:
-//   Firebase validates id_tokens by checking their "aud" (audience) claim
-//   matches the Web OAuth client ID registered in the Firebase project.
-//   A token minted for a Desktop client ID will always 400.
+// REDIRECT URI STRATEGY:
+//   Web OAuth clients require an EXACT match on redirect_uri — including port.
+//   Random ports like http://127.0.0.1:49902 are rejected unless each one is
+//   pre-registered, which is impossible.
 //
-//   We therefore use the Web client ID for the OAuth request (so the token's
-//   aud matches what Firebase expects), but we still need the desktop client's
-//   secret for the code→token exchange because the Web client type doesn't
-//   allow loopback redirect URIs.
+//   Solution: use a FIXED redirect URI with no port: http://127.0.0.1
+//   This is registered once in Google Cloud Console and always matches.
+//   main.js intercepts the navigation to 127.0.0.1 (any port) before Electron
+//   tries to load it, so no server is needed.
 //
-//   Solution: use the Web client ID in the auth URL, but exchange the code
-//   with a separate Desktop client (which Google allows to use loopback).
-//   Actually the simplest correct approach: use ONE Desktop client for the
-//   entire flow, then tell Firebase to also trust that client ID by adding it
-//   as an additional OAuth client in the Firebase console.
+// .env setup:
+//   VITE_GOOGLE_CLIENT_ID=<web-client-id>.apps.googleusercontent.com
+//   VITE_GOOGLE_CLIENT_SECRET=<web-client-secret>
 //
-//   EASIEST SETUP (no second client needed):
-//   → In Google Cloud Console, edit your existing Desktop OAuth client and
-//     also add the Web client ID as an additional "trusted audience" is not
-//     possible. Instead, do this:
-//
-//   CORRECT SETUP:
-//   1. Google Cloud Console → Credentials → your WEB OAuth 2.0 client
-//      • Add http://127.0.0.1 to "Authorised redirect URIs"
-//      (Web clients CAN use loopback — Google allows it for installed apps)
-//   2. Use that same Web client ID + secret for everything
-//   3. .env:
-//        VITE_GOOGLE_CLIENT_ID=<web-client-id>.apps.googleusercontent.com
-//        VITE_GOOGLE_CLIENT_SECRET=<web-client-secret>
-//   4. Firebase Console → Authentication → Sign-in method → Google:
-//      already uses this same web client, so tokens will be accepted.
+// Google Cloud Console → Web client → Authorised redirect URIs:
+//   http://127.0.0.1          ← add this (no port, no trailing slash)
 // ---------------------------------------------------------------------------
 async function signInWithGoogleElectron(): Promise<void> {
   const CLIENT_ID     = import.meta.env['VITE_GOOGLE_CLIENT_ID'];
@@ -160,16 +138,16 @@ async function signInWithGoogleElectron(): Promise<void> {
     throw Object.assign(
       new Error(
         'Google Sign-In is not configured.\n' +
-        'Add VITE_GOOGLE_CLIENT_ID and VITE_GOOGLE_CLIENT_SECRET to your .env file.\n' +
-        'Use the WEB OAuth client from Google Cloud Console (not Desktop type).\n' +
-        'Add http://127.0.0.1 to its Authorised redirect URIs.'
+        'Add VITE_GOOGLE_CLIENT_ID and VITE_GOOGLE_CLIENT_SECRET to your .env file.'
       ),
       { code: 'auth/google-not-configured' }
     );
   }
 
-  const port        = Math.floor(Math.random() * 10000) + 40000;
-  const redirectUri = `http://127.0.0.1:${port}`;
+  // Fixed redirect URI — no port, registered exactly as-is in Google Cloud Console.
+  // main.js intercepts ANY navigation to 127.0.0.1 regardless of port,
+  // so this works without a listening server.
+  const redirectUri = 'http://127.0.0.1';
 
   const codeVerifier  = generateCodeVerifier();
   const codeChallenge = await generateCodeChallenge(codeVerifier);
@@ -184,8 +162,6 @@ async function signInWithGoogleElectron(): Promise<void> {
   authUrl.searchParams.set('access_type',           'offline');
   authUrl.searchParams.set('prompt',                'select_account');
 
-  // main.js intercepts the 127.0.0.1 redirect, extracts the code, posts it
-  // back here via BroadcastChannel, and closes the popup window.
   const code = await new Promise<string>((resolve, reject) => {
     const channel = new BroadcastChannel('google-oauth');
 
@@ -210,7 +186,6 @@ async function signInWithGoogleElectron(): Promise<void> {
     window.open(authUrl.toString(), '_blank');
   });
 
-  // Exchange code for tokens using the same client credentials
   const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -236,14 +211,11 @@ async function signInWithGoogleElectron(): Promise<void> {
 
   if (!tokens.id_token) {
     throw Object.assign(
-      new Error('No id_token in token response — ensure "openid" scope is requested'),
+      new Error('No id_token returned — ensure "openid" scope is present'),
       { code: 'auth/internal-error' }
     );
   }
 
-  // Sign into Firebase. The id_token's "aud" must match the Web client ID
-  // that Firebase knows about — this works because we used the Web client ID
-  // for the OAuth request above.
   const credential = GoogleAuthProvider.credential(tokens.id_token as string);
   await signInWithCredential(auth, credential);
 }

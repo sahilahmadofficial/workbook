@@ -18,6 +18,15 @@ const categories = [
   { value: TaskCategory.FUTURE, label: 'Future' },
 ];
 
+// Extend Window interface for TypeScript
+declare global {
+  interface Window {
+    electronAPI?: {
+      closePanel: () => void;
+    };
+  }
+}
+
 export const Layout: React.FC<LayoutProps> = ({
   activeCategory,
   onCategoryChange,
@@ -25,13 +34,34 @@ export const Layout: React.FC<LayoutProps> = ({
   userEmail,
   onSignOut,
 }) => {
+  const handleClosePanel = () => {
+    // Check if running in Electron
+    if (window.electronAPI && window.electronAPI.closePanel) {
+      window.electronAPI.closePanel();
+    }
+  };
+
   return (
     <div className="layout">
       <header className="layout__header">
         <h1 className="layout__logo">WorkBook</h1>
-        {userEmail && onSignOut && (
-          <UserProfile userEmail={userEmail} onSignOut={onSignOut} />
-        )}
+        <div className="layout__header-actions">
+          {userEmail && onSignOut && (
+            <UserProfile userEmail={userEmail} onSignOut={onSignOut} />
+          )}
+          {window.electronAPI && (
+            <button 
+              className="layout__close-button" 
+              onClick={handleClosePanel}
+              title="Close panel"
+              aria-label="Close panel"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+              </svg>
+            </button>
+          )}
+        </div>
       </header>
 
       <nav className="layout__nav">

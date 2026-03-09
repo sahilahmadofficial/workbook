@@ -1,12 +1,24 @@
-const { app, BrowserWindow, screen, Menu, protocol, net, shell } = require('electron');
+const { app, BrowserWindow, screen, Menu, protocol, net, shell, ipcMain } = require('electron');
 const path = require('path');
 const url = require('url');
 
 let mainWindow;
+let floatingButton;
+let isPanelVisible = false;
+let currentEdge = 'right';  // Default edge position
 
-// Register a custom protocol BEFORE app is ready.
-// Firebase Auth requires location.protocol to be http/https/chrome-extension.
-// Serving via a custom "app://" protocol satisfies Firebase's check.
+// Window dimensions
+const PANEL_WIDTH = 400;
+const PANEL_HEIGHT = 700;
+const BUTTON_WIDTH = 30;
+const BUTTON_HEIGHT = 80;
+
+// Dragging state
+let isDragging = false;
+let dragStartPos = { x: 0, y: 0 };
+let buttonStartPos = { x: 0, y: 0 };
+
+// Register a custom protocol BEFORE app is ready
 protocol.registerSchemesAsPrivileged([
   {
     scheme: 'app',
@@ -19,30 +31,14 @@ protocol.registerSchemesAsPrivileged([
   },
 ]);
 
-// ---------------------------------------------------------------------------
 // Google OAuth popup handler
-// ---------------------------------------------------------------------------
-// Flow:
-//   1. Renderer calls window.open('https://accounts.google.com/...')
-//   2. setWindowOpenHandler allows it as a BrowserWindow popup
-//   3. After the user consents, Google redirects the popup to
-//      http://127.0.0.1:<port>?code=...
-//   4. We intercept that navigation BEFORE it happens (will-navigate /
-//      will-redirect), extract the code, send it to the renderer, and
-//      close the popup — so Electron never tries to actually load the
-//      127.0.0.1 URL (which has no server and causes ERR_CONNECTION_REFUSED)
-// ---------------------------------------------------------------------------
-
 function attachOAuthInterceptor(popupWindow) {
-  // Fires when Chromium is about to redirect — catch it before load attempt
   popupWindow.webContents.on('will-redirect', (event, targetUrl) => {
     if (handleOAuthRedirect(targetUrl, popupWindow)) {
-      // Prevent Electron from actually navigating to 127.0.0.1 (no server there)
       event.preventDefault();
     }
   });
 
-  // Fallback: some OAuth flows use a direct navigation rather than a redirect
   popupWindow.webContents.on('will-navigate', (event, targetUrl) => {
     if (handleOAuthRedirect(targetUrl, popupWindow)) {
       event.preventDefault();
@@ -50,18 +46,14 @@ function attachOAuthInterceptor(popupWindow) {
   });
 }
 
-// Returns true if the URL was the OAuth callback and was handled
 function handleOAuthRedirect(targetUrl, popupWindow) {
   try {
     const parsed = new URL(targetUrl);
-
-    // Only intercept loopback redirects: http://127.0.0.1:<port>?code=...
     if (parsed.hostname !== '127.0.0.1') return false;
 
     const code  = parsed.searchParams.get('code');
     const error = parsed.searchParams.get('error');
 
-    // Post the result back to the main renderer via BroadcastChannel
     if (mainWindow && !mainWindow.isDestroyed()) {
       const payload = JSON.stringify(code ? { code } : { error: error || 'access_denied' });
       mainWindow.webContents
@@ -69,7 +61,6 @@ function handleOAuthRedirect(targetUrl, popupWindow) {
         .catch(console.error);
     }
 
-    // Close the popup immediately — no need to load the redirect URL
     setImmediate(() => {
       if (!popupWindow.isDestroyed()) popupWindow.close();
     });
@@ -80,39 +71,68 @@ function handleOAuthRedirect(targetUrl, popupWindow) {
   }
 }
 
-function createWindow() {
+function getScreenBounds() {
+  const primaryDisplay = screen.getPrimaryDisplay();
+  return primaryDisplay.workAreaSize;
+}
+
+function createFloatingButton() {
+  const screenBounds = getScreenBounds();
+  const centerY = Math.floor((screenBounds.height - BUTTON_HEIGHT) / 2);
+  const rightX = screenBounds.width - BUTTON_WIDTH;
+
+  floatingButton = new BrowserWindow({
+    width: BUTTON_WIDTH,
+    height: BUTTON_HEIGHT,
+    x: rightX,
+    y: centerY,
+    frame: false,
+    transparent: true,
+    alwaysOnTop: true,
+    resizable: false,
+    skipTaskbar: true,
+    hasShadow: true,
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      preload: path.join(__dirname, 'preload.js'),
+    },
+  });
+
+  floatingButton.loadFile(path.join(__dirname, 'button.html'));
+
+  floatingButton.on('closed', () => {
+    floatingButton = null;
+  });
+}
+
+function createMainWindow() {
   Menu.setApplicationMenu(null);
 
-  const primaryDisplay = screen.getPrimaryDisplay();
-  const { width: screenWidth, height: screenHeight } = primaryDisplay.workAreaSize;
-
-  const windowWidth  = 400;
-  const windowHeight = 700;
-  const x = screenWidth - windowWidth;
-  const y = Math.floor((screenHeight - windowHeight) / 2);
+  const screenBounds = getScreenBounds();
+  const hiddenX = screenBounds.width;
+  const centerY = Math.floor((screenBounds.height - PANEL_HEIGHT) / 2);
 
   mainWindow = new BrowserWindow({
-    width: windowWidth,
-    height: windowHeight,
-    x,
-    y,
-    frame: true,
-    resizable: true,
-    minimizable: true,
-    maximizable: true,
-    closable: true,
+    width: PANEL_WIDTH,
+    height: PANEL_HEIGHT,
+    x: hiddenX,
+    y: centerY,
+    frame: false,
+    resizable: false,
+    show: false,
+    skipTaskbar: true,
+    alwaysOnTop: false,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
     },
     backgroundColor: '#fafaf9',
-    title: 'WorkBook',
   });
 
-  // Intercept ALL window.open() calls from the renderer
+  // Intercept window.open for OAuth
   mainWindow.webContents.setWindowOpenHandler((details) => {
     if (details.url.startsWith('https://accounts.google.com/')) {
-      // Let Electron create a popup for Google auth, then attach interceptor
       mainWindow.webContents.once('did-create-window', (popupWindow) => {
         attachOAuthInterceptor(popupWindow);
       });
@@ -132,7 +152,6 @@ function createWindow() {
       };
     }
 
-    // All other links open in the system browser
     shell.openExternal(details.url);
     return { action: 'deny' };
   });
@@ -165,6 +184,213 @@ function createWindow() {
   mainWindow.on('closed', () => { mainWindow = null; });
 }
 
+// Smooth slide animation
+function slideWindow(window, targetX, targetY, callback) {
+  if (!window || window.isDestroyed()) {
+    if (callback) callback();
+    return;
+  }
+  
+  const [startX, startY] = window.getPosition();
+  const duration = 300;
+  const fps = 60;
+  const frames = (duration / 1000) * fps;
+  let frame = 0;
+
+  const animate = () => {
+    if (!window || window.isDestroyed()) {
+      if (callback) callback();
+      return;
+    }
+
+    frame++;
+    const progress = frame / frames;
+    const easeProgress = 1 - Math.pow(1 - progress, 3); // ease-out-cubic
+
+    const currentX = Math.round(startX + (targetX - startX) * easeProgress);
+    const currentY = Math.round(startY + (targetY - startY) * easeProgress);
+
+    window.setPosition(currentX, currentY);
+
+    if (frame < frames) {
+      setTimeout(animate, 1000 / fps);
+    } else {
+      window.setPosition(targetX, targetY);
+      if (callback) callback();
+    }
+  };
+
+  animate();
+}
+
+// Toggle panel visibility
+function togglePanel() {
+  console.log('togglePanel called, isPanelVisible:', isPanelVisible);
+  
+  if (!mainWindow || !floatingButton) return;
+
+  const screenBounds = getScreenBounds();
+  const centerY = Math.floor((screenBounds.height - PANEL_HEIGHT) / 2);
+
+  if (isPanelVisible) {
+    // Hide panel
+    const hiddenX = getHiddenPosForEdge(currentEdge, screenBounds);
+    slideWindow(mainWindow, hiddenX, centerY, () => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.hide();
+      }
+      isPanelVisible = false;
+      
+      // Show button
+      if (floatingButton && !floatingButton.isDestroyed()) {
+        floatingButton.show();
+        setTimeout(() => {
+          if (floatingButton && !floatingButton.isDestroyed()) {
+            floatingButton.focus();
+          }
+        }, 100);
+      }
+    });
+  } else {
+    // Show panel
+    const visibleX = getVisiblePosForEdge(currentEdge, screenBounds);
+    
+    // Hide button first
+    if (floatingButton && !floatingButton.isDestroyed()) {
+      floatingButton.hide();
+    }
+    
+    // Show panel
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.show();
+      slideWindow(mainWindow, visibleX, centerY, () => {
+        isPanelVisible = true;
+      });
+    }
+  }
+}
+
+function getHiddenPosForEdge(edge, screenBounds) {
+  switch(edge) {
+    case 'left': return -PANEL_WIDTH;
+    case 'right': return screenBounds.width;
+    case 'top': return 0;
+    case 'bottom': return 0;
+    default: return screenBounds.width;
+  }
+}
+
+function getVisiblePosForEdge(edge, screenBounds) {
+  switch(edge) {
+    case 'left': return 0;
+    case 'right': return screenBounds.width - PANEL_WIDTH;
+    case 'top': return 0;
+    case 'bottom': return 0;
+    default: return screenBounds.width - PANEL_WIDTH;
+  }
+}
+
+function snapToEdge(x, y) {
+  const screenBounds = getScreenBounds();
+  const centerX = x;
+  const centerY = y;
+  
+  // Calculate distances to each edge
+  const distLeft = centerX;
+  const distRight = screenBounds.width - centerX;
+  const distTop = centerY;
+  const distBottom = screenBounds.height - centerY;
+  
+  // Find closest edge
+  const minDist = Math.min(distLeft, distRight, distTop, distBottom);
+  
+  let edge, finalX, finalY;
+  
+  if (minDist === distRight) {
+    edge = 'right';
+    finalX = screenBounds.width - BUTTON_WIDTH;
+    finalY = Math.max(0, Math.min(centerY, screenBounds.height - BUTTON_HEIGHT));
+  } else if (minDist === distLeft) {
+    edge = 'left';
+    finalX = 0;
+    finalY = Math.max(0, Math.min(centerY, screenBounds.height - BUTTON_HEIGHT));
+  } else if (minDist === distTop) {
+    edge = 'top';
+    finalX = Math.max(0, Math.min(centerX, screenBounds.width - BUTTON_WIDTH));
+    finalY = 0;
+  } else {
+    edge = 'bottom';
+    finalX = Math.max(0, Math.min(centerX, screenBounds.width - BUTTON_WIDTH));
+    finalY = screenBounds.height - BUTTON_HEIGHT;
+  }
+  
+  return { edge, x: finalX, y: finalY };
+}
+
+// IPC Handlers
+ipcMain.on('button-drag-start', () => {
+  console.log('Drag start');
+  isDragging = true;
+  if (floatingButton && !floatingButton.isDestroyed()) {
+    const [x, y] = floatingButton.getPosition();
+    buttonStartPos = { x, y };
+    dragStartPos = { x: 0, y: 0 };
+  }
+});
+
+ipcMain.on('move-window', (event, screenX, screenY) => {
+  if (!floatingButton || floatingButton.isDestroyed()) return;
+
+  if (dragStartPos.x === 0 && dragStartPos.y === 0) {
+    dragStartPos = { x: screenX, y: screenY };
+  }
+
+  const deltaX = screenX - dragStartPos.x;
+  const deltaY = screenY - dragStartPos.y;
+
+  const newX = buttonStartPos.x + deltaX;
+  const newY = buttonStartPos.y + deltaY;
+
+  floatingButton.setPosition(newX, newY);
+});
+
+ipcMain.on('button-drag-end', (event, position) => {
+  console.log('Drag end');
+  isDragging = false;
+  dragStartPos = { x: 0, y: 0 };
+  
+  if (!floatingButton || floatingButton.isDestroyed()) return;
+  
+  const [currentX, currentY] = floatingButton.getPosition();
+  const snapped = snapToEdge(currentX, currentY);
+  
+  currentEdge = snapped.edge;
+  floatingButton.setPosition(snapped.x, snapped.y);
+  
+  // Notify button of edge change
+  if (floatingButton && !floatingButton.isDestroyed()) {
+    floatingButton.webContents.send('edge-changed', snapped.edge);
+  }
+});
+
+ipcMain.on('toggle-panel', () => {
+  console.log('IPC: toggle-panel received');
+  togglePanel();
+});
+
+ipcMain.on('close-panel', () => {
+  console.log('IPC: close-panel received');
+  if (isPanelVisible) {
+    togglePanel();
+  }
+});
+
+ipcMain.on('get-edge', () => {
+  if (floatingButton && !floatingButton.isDestroyed()) {
+    floatingButton.webContents.send('edge-changed', currentEdge);
+  }
+});
+
 app.whenReady().then(() => {
   protocol.handle('app', (request) => {
     const filePath = new URL(request.url).pathname;
@@ -172,7 +398,8 @@ app.whenReady().then(() => {
     return net.fetch(url.pathToFileURL(fullPath).toString());
   });
 
-  createWindow();
+  createFloatingButton();
+  createMainWindow();
 });
 
 app.on('window-all-closed', () => {
@@ -180,5 +407,6 @@ app.on('window-all-closed', () => {
 });
 
 app.on('activate', () => {
-  if (BrowserWindow.getAllWindows().length === 0) createWindow();
+  if (!floatingButton) createFloatingButton();
+  if (!mainWindow) createMainWindow();
 });
