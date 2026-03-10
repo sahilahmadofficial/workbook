@@ -69,9 +69,18 @@ export const Toast: React.FC<ToastProps> = ({ toast, onDismiss }) => {
   };
 
   return (
-    <div className={`toast toast--${toast.type}`} onClick={() => onDismiss(toast.id)}>
+    <div className={`toast toast--${toast.type}`}>
       <div className="toast__icon">{getIcon()}</div>
       <p className="toast__message">{toast.message}</p>
+      <button
+        className="toast__close"
+        onClick={() => onDismiss(toast.id)}
+        aria-label="Dismiss notification"
+      >
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M11 3L3 11M3 3l8 8" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round"/>
+        </svg>
+      </button>
     </div>
   );
 };

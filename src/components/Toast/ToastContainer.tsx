@@ -5,6 +5,7 @@ import './ToastContainer.css';
 interface ToastContainerProps {
   toasts: ToastMessage[];
   onDismiss: (id: string) => void;
+  onDismissAll?: () => void;
 }
 
 export const ToastContainer: React.FC<ToastContainerProps> = ({ toasts, onDismiss }) => {

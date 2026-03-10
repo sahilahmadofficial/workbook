@@ -16,15 +16,13 @@ interface UseTasksReturn {
   refreshTasks: () => Promise<void>;
 }
 
-/**
- * Custom hook for task management
- * Centralizes all task-related state and operations
- */
 export function useTasks(): UseTasksReturn {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Full refresh — only used on initial load and storage backend switches.
+  // Never called after individual operations to avoid full UI re-renders.
   const refreshTasks = useCallback(async () => {
     try {
       setLoading(true);
@@ -46,84 +44,82 @@ export function useTasks(): UseTasksReturn {
   const createTask = useCallback(async (title: string, category?: TaskCategory) => {
     try {
       setError(null);
-      await taskService.createTask(title, category);
-      await refreshTasks();
+      const newTask = await taskService.createTask(title, category);
+      // Prepend the new task — no re-fetch needed
+      setTasks((prev) => [newTask, ...prev]);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create task');
       throw err;
     }
-  }, [refreshTasks]);
+  }, []);
 
   const completeTask = useCallback(async (id: string) => {
     try {
       setError(null);
-      await taskService.completeTask(id);
-      await refreshTasks();
+      const updatedTask = await taskService.completeTask(id);
+      setTasks((prev) => prev.map((t) => (t.id === id ? updatedTask : t)));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to complete task');
       throw err;
     }
-  }, [refreshTasks]);
+  }, []);
 
   const moveToFuture = useCallback(async (id: string) => {
     try {
       setError(null);
-      await taskService.moveToFuture(id);
-      await refreshTasks();
+      const updatedTask = await taskService.moveToFuture(id);
+      setTasks((prev) => prev.map((t) => (t.id === id ? updatedTask : t)));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to move task');
       throw err;
     }
-  }, [refreshTasks]);
+  }, []);
 
   const moveToPresent = useCallback(async (id: string) => {
     try {
       setError(null);
-      await taskService.moveToPresent(id);
-      await refreshTasks();
+      const updatedTask = await taskService.moveToPresent(id);
+      setTasks((prev) => prev.map((t) => (t.id === id ? updatedTask : t)));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to move task');
       throw err;
     }
-  }, [refreshTasks]);
+  }, []);
 
   const deleteTask = useCallback(async (id: string) => {
     try {
       setError(null);
       await taskService.deleteTask(id);
-      await refreshTasks();
+      setTasks((prev) => prev.filter((t) => t.id !== id));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete task');
       throw err;
     }
-  }, [refreshTasks]);
+  }, []);
 
   const updateTaskTitle = useCallback(async (id: string, title: string) => {
     try {
       setError(null);
-      await taskService.updateTaskTitle(id, title);
-      await refreshTasks();
+      const updatedTask = await taskService.updateTaskTitle(id, title);
+      setTasks((prev) => prev.map((t) => (t.id === id ? updatedTask : t)));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update task');
       throw err;
     }
-  }, [refreshTasks]);
+  }, []);
 
   const reorderTasks = useCallback(async (category: TaskCategory, taskIds: string[]) => {
     try {
       setError(null);
       const updatedTasks = await taskService.reorderTasks(category, taskIds);
-      
-      // Update tasks state optimistically with the returned tasks
-      setTasks((prevTasks) => {
-        // Remove old category tasks and add updated ones
-        const otherTasks = prevTasks.filter(t => t.category !== category);
+      setTasks((prev) => {
+        const otherTasks = prev.filter((t) => t.category !== category);
         return [...otherTasks, ...updatedTasks];
       });
     } catch (err) {
       console.error('Reorder error in useTasks:', err);
       setError(err instanceof Error ? err.message : 'Failed to reorder tasks');
-      // Refresh on error to restore correct state
+      // Only refresh on error to restore correct state
       try {
         await refreshTasks();
       } catch (refreshErr) {

@@ -5,8 +5,10 @@ interface AuthScreenProps {
   onSignIn: (email: string, password: string) => Promise<void>;
   onSignUp: (email: string, password: string) => Promise<void>;
   onSignInWithGoogle: () => Promise<void>;
+  onResendVerification: () => Promise<void>;
   error: string | null;
   loading: boolean;
+  pendingVerification: boolean;
 }
 
 declare global {
@@ -21,13 +23,36 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
   onSignIn,
   onSignUp,
   onSignInWithGoogle,
+  onResendVerification,
   error,
   loading,
+  pendingVerification,
 }) => {
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [localError, setLocalError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const [resendSuccess, setResendSuccess] = useState(false);
+
+  // Countdown timer for resend cooldown
+  React.useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const timer = setTimeout(() => setResendCooldown((c) => c - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [resendCooldown]);
+
+  const handleResend = async () => {
+    try {
+      setResendSuccess(false);
+      await onResendVerification();
+      setResendCooldown(60);
+      setResendSuccess(true);
+    } catch {
+      // error shown via hook
+    }
+  };
 
   const handleClosePanel = () => {
     if (window.electronAPI && window.electronAPI.closePanel) {
@@ -88,6 +113,82 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
 
   const displayError = error || localError;
 
+  // ── Verification pending screen ──────────────────────────────────────────
+  if (pendingVerification) {
+    return (
+      <div className="auth-screen">
+        <button
+          className="auth-screen__close-button"
+          onClick={handleClosePanel}
+          title="Close panel"
+          aria-label="Close panel"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+            <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+          </svg>
+        </button>
+
+        <div className="auth-screen__container">
+          <div className="auth-screen__verify-icon">
+            <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+              <rect width="48" height="48" rx="24" fill="var(--color-accent-light)"/>
+              <path d="M12 16h24v20H12V16z" stroke="var(--color-accent)" strokeWidth="2" strokeLinejoin="round"/>
+              <path d="M12 16l12 13 12-13" stroke="var(--color-accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </div>
+
+          <div className="auth-screen__header">
+            <h1 className="auth-screen__logo">Check your email</h1>
+            <p className="auth-screen__tagline">
+              We've sent a verification link to your email address. Click the link to activate your account.
+            </p>
+          </div>
+
+          {resendSuccess && (
+            <div className="auth-screen__verify-success">
+              Verification email resent successfully!
+            </div>
+          )}
+
+          {error && (
+            <div className="auth-screen__error" style={{ marginBottom: 'var(--space-md)' }}>
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path d="M8 14C11.3137 14 14 11.3137 14 8C14 4.68629 11.3137 2 8 2C4.68629 2 2 4.68629 2 8C2 11.3137 4.68629 14 8 14Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M8 5.33334V8.00001M8 10.6667H8.00667" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              {error}
+            </div>
+          )}
+
+          <div className="auth-screen__form">
+            <button
+              type="button"
+              className="auth-screen__button auth-screen__button--primary"
+              onClick={handleResend}
+              disabled={loading || resendCooldown > 0}
+            >
+              {resendCooldown > 0
+                ? `Resend in ${resendCooldown}s`
+                : 'Resend verification email'}
+            </button>
+
+            <div className="auth-screen__verify-note">
+              Once verified, come back and{' '}
+              <button
+                type="button"
+                className="auth-screen__toggle-button"
+                onClick={() => window.location.reload()}
+              >
+                sign in
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  // ────────────────────────────────────────────────────────────────────────
+
   return (
     <div className="auth-screen">
       <button 
@@ -130,15 +231,36 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
             <label htmlFor="password" className="auth-screen__label">
               Password
             </label>
-            <input
-              id="password"
-              type="password"
-              className="auth-screen__input"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder={isSignUp ? 'At least 6 characters' : 'Your password'}
-              disabled={loading}
-            />
+            <div className="auth-screen__input-wrapper">
+              <input
+                id="password"
+                type={showPassword ? 'text' : 'password'}
+                className="auth-screen__input auth-screen__input--with-icon"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder={isSignUp ? 'At least 6 characters' : 'Your password'}
+                disabled={loading}
+              />
+              <button
+                type="button"
+                className="auth-screen__password-toggle"
+                onClick={() => setShowPassword((v) => !v)}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                tabIndex={-1}
+              >
+                {showPassword ? (
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                    <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    <line x1="1" y1="1" x2="23" y2="23" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                  </svg>
+                ) : (
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2"/>
+                  </svg>
+                )}
+              </button>
+            </div>
           </div>
 
           {displayError && (

@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { TaskCategory } from './types';
 import { useTasks } from './hooks/useTasks';
 import { useToast } from './hooks/useToast';
@@ -14,9 +14,15 @@ import './styles/globals.css';
 
 function App() {
   const [activeCategory, setActiveCategory] = useState<TaskCategory>(TaskCategory.PRESENT);
-  const { toasts, showToast, dismissToast } = useToast();
-  const { user, loading: authLoading, error: authError, signIn, signUp, signInWithGoogle, signOut } = useAuth();
-  
+  const { toasts, showToast, dismissToast, clearToasts } = useToast();
+  const { user, loading: authLoading, error: authError, signIn, signUp, signInWithGoogle, signOut, pendingVerification, resendVerification } = useAuth();
+  const prevUserRef = useRef(user);
+  // Track whether the app has completed its initial auth resolution.
+  // On first mount the auth state is restored from a persisted session —
+  // that should NOT show "Signed in successfully". Only explicit sign-in
+  // actions that happen after the initial load should show the toast.
+  const authInitializedRef = useRef(false);
+
   const {
     tasks,
     loading,
@@ -30,6 +36,27 @@ function App() {
     reorderTasks,
     refreshTasks,
   } = useTasks();
+
+  // Clear toasts when a user signs in so notifications from the logged-out
+  // session (e.g. "Signed out successfully") don't bleed into the app.
+  useEffect(() => {
+    if (!authLoading) {
+      if (!authInitializedRef.current) {
+        // First time auth resolves after mount — this is a session restore,
+        // not a user-initiated sign-in. Mark as initialized and skip the toast.
+        authInitializedRef.current = true;
+        prevUserRef.current = user;
+        return;
+      }
+
+      // Subsequent transitions: null → user means the user actively signed in.
+      if (!prevUserRef.current && user) {
+        clearToasts();
+        showToast('Signed in successfully', ToastType.SUCCESS);
+      }
+      prevUserRef.current = user;
+    }
+  }, [user, authLoading, clearToasts, showToast]);
 
   // Switch storage based on authentication
   useEffect(() => {
@@ -170,10 +197,12 @@ function App() {
           onSignIn={signIn}
           onSignUp={signUp}
           onSignInWithGoogle={signInWithGoogle}
+          onResendVerification={resendVerification}
           error={authError}
           loading={authLoading}
+          pendingVerification={pendingVerification}
         />
-        <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+        <ToastContainer toasts={toasts} onDismiss={dismissToast} onDismissAll={clearToasts} />
       </>
     );
   }
@@ -246,7 +275,7 @@ function App() {
         onUpdateTaskTitle={handleUpdateTaskTitle}
         onReorderTasks={handleReorderTasks}
       />
-      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+      <ToastContainer toasts={toasts} onDismiss={dismissToast} onDismissAll={clearToasts} />
     </Layout>
   );
 }

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   User,
   signInWithEmailAndPassword,
@@ -8,6 +8,7 @@ import {
   GoogleAuthProvider,
   signInWithPopup,
   signInWithCredential,
+  sendEmailVerification,
 } from 'firebase/auth';
 import { auth } from '../config/firebase';
 
@@ -27,21 +28,39 @@ interface UseAuthReturn {
   user: User | null;
   loading: boolean;
   error: string | null;
+  pendingVerification: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
+  resendVerification: () => Promise<void>;
   clearError: () => void;
 }
 
 export function useAuth(): UseAuthReturn {
-  const [user, setUser]       = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError]     = useState<string | null>(null);
+  const [user, setUser]                           = useState<User | null>(null);
+  const [loading, setLoading]                     = useState(true);
+  const [error, setError]                         = useState<string | null>(null);
+  const [pendingVerification, setPendingVerification] = useState(false);
+  // Hold a reference to the unverified user so we can resend the email
+  const unverifiedUserRef = React.useRef<User | null>(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-      setUser(firebaseUser);
+      // Only admit fully verified (or Google/non-email) users into the app
+      if (firebaseUser && !firebaseUser.emailVerified &&
+          firebaseUser.providerData[0]?.providerId === 'password') {
+        // Email/password user who hasn't verified yet — keep them out
+        unverifiedUserRef.current = firebaseUser;
+        setUser(null);
+      } else {
+        setUser(firebaseUser);
+        if (firebaseUser) {
+          // Verified — clear any pending state
+          setPendingVerification(false);
+          unverifiedUserRef.current = null;
+        }
+      }
       setLoading(false);
     });
     return unsubscribe;
@@ -51,7 +70,15 @@ export function useAuth(): UseAuthReturn {
     try {
       setError(null);
       setLoading(true);
-      await signInWithEmailAndPassword(auth, email, password);
+      const result = await signInWithEmailAndPassword(auth, email, password);
+      if (!result.user.emailVerified) {
+        // Send a fresh verification email and block access
+        await sendEmailVerification(result.user);
+        unverifiedUserRef.current = result.user;
+        await firebaseSignOut(auth);
+        setPendingVerification(true);
+        setError('Please verify your email before signing in. A new verification link has been sent.');
+      }
     } catch (err: any) {
       const msg = getErrorMessage(err.code);
       setError(msg);
@@ -65,7 +92,13 @@ export function useAuth(): UseAuthReturn {
     try {
       setError(null);
       setLoading(true);
-      await createUserWithEmailAndPassword(auth, email, password);
+      const result = await createUserWithEmailAndPassword(auth, email, password);
+      // Send verification email immediately after account creation
+      await sendEmailVerification(result.user);
+      unverifiedUserRef.current = result.user;
+      // Sign them out so they can't access the app until verified
+      await firebaseSignOut(auth);
+      setPendingVerification(true);
     } catch (err: any) {
       const msg = getErrorMessage(err.code);
       setError(msg);
@@ -105,9 +138,24 @@ export function useAuth(): UseAuthReturn {
     }
   };
 
+  const resendVerification = async () => {
+    try {
+      setError(null);
+      if (unverifiedUserRef.current) {
+        await sendEmailVerification(unverifiedUserRef.current);
+      } else {
+        setError('No pending verification. Please sign up again.');
+      }
+    } catch (err: any) {
+      const msg = getErrorMessage(err.code);
+      setError(msg);
+      throw new Error(msg);
+    }
+  };
+
   const clearError = () => setError(null);
 
-  return { user, loading, error, signIn, signUp, signInWithGoogle, signOut, clearError };
+  return { user, loading, error, pendingVerification, signIn, signUp, signInWithGoogle, signOut, resendVerification, clearError };
 }
 
 // ---------------------------------------------------------------------------

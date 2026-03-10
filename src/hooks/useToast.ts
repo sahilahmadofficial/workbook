@@ -1,30 +1,24 @@
 import { useState, useCallback } from 'react';
 import { ToastMessage, ToastType } from '../components/Toast/Toast';
 
-interface UseToastReturn {
-  toasts: ToastMessage[];
-  showToast: (message: string, type?: ToastType) => void;
-  dismissToast: (id: string) => void;
-}
+let toastIdCounter = 0;
 
-export function useToast(): UseToastReturn {
+export const useToast = () => {
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
-  const showToast = useCallback((message: string, type: ToastType = ToastType.SUCCESS) => {
-    const id = crypto.randomUUID();
-    const toast: ToastMessage = { id, message, type };
-    
-    // Replace any existing toast with the new one
-    setToasts([toast]);
+  const showToast = useCallback((message: string, type: ToastType) => {
+    const id = `toast-${++toastIdCounter}`;
+    // Replace any existing toast so only one is ever visible at a time
+    setToasts([{ id, message, type }]);
   }, []);
 
   const dismissToast = useCallback((id: string) => {
-    setToasts((prev) => prev.filter((toast) => toast.id !== id));
+    setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  return {
-    toasts,
-    showToast,
-    dismissToast,
-  };
-}
+  const clearToasts = useCallback(() => {
+    setToasts([]);
+  }, []);
+
+  return { toasts, showToast, dismissToast, clearToasts };
+};

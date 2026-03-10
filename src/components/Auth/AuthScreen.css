@@ -234,3 +234,67 @@
 .auth-screen__close-button svg {
   pointer-events: none;
 }
+
+/* Password field with visibility toggle */
+.auth-screen__input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.auth-screen__input--with-icon {
+  width: 100%;
+  padding-right: 42px;
+}
+
+.auth-screen__password-toggle {
+  position: absolute;
+  right: var(--space-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  padding: 4px;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: color var(--transition-fast);
+}
+
+.auth-screen__password-toggle:hover {
+  color: var(--color-text-secondary);
+}
+
+.auth-screen__password-toggle svg {
+  pointer-events: none;
+}
+
+/* Verification pending screen */
+.auth-screen__verify-icon {
+  display: flex;
+  justify-content: center;
+  margin-bottom: var(--space-xl);
+}
+
+.auth-screen__verify-success {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-md);
+  background: var(--color-success-light);
+  color: var(--color-success);
+  border: 1.5px solid var(--color-success);
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  font-weight: 500;
+  margin-bottom: var(--space-md);
+  text-align: center;
+}
+
+.auth-screen__verify-note {
+  text-align: center;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  margin-top: var(--space-sm);
+}

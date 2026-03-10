@@ -194,11 +194,14 @@ function slideWindow(window, targetX, targetY, callback) {
     const currentX = Math.round(startX + (targetX - startX) * easeProgress);
     const currentY = Math.round(startY + (targetY - startY) * easeProgress);
 
+    // Lock size on every frame to prevent Windows OS from inflating bounds during animation
+    window.setSize(PANEL_WIDTH, PANEL_HEIGHT);
     window.setPosition(currentX, currentY);
 
     if (frame < frames) {
       setTimeout(animate, 1000 / fps);
     } else {
+      window.setSize(PANEL_WIDTH, PANEL_HEIGHT);
       window.setPosition(targetX, targetY);
       if (callback) callback();
     }
@@ -208,22 +211,30 @@ function slideWindow(window, targetX, targetY, callback) {
 }
 
 function togglePanel() {
-  if (!mainWindow || !floatingButton) return;
-
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  
   const screenBounds = getScreenBounds();
 
   if (isPanelVisible) {
+    // Hide panel
     const hiddenY = -PANEL_HEIGHT;
-    const panelX = buttonX - (PANEL_WIDTH / 2) + (BUTTON_WIDTH / 2);
+    const panelX = Math.floor(buttonX - (PANEL_WIDTH / 2) + (BUTTON_WIDTH / 2));
+    const constrainedX = Math.max(0, Math.min(panelX, screenBounds.width - PANEL_WIDTH));
     
-    slideWindow(mainWindow, panelX, hiddenY, () => {
+    slideWindow(mainWindow, constrainedX, hiddenY, () => {
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.hide();
+        // BUG FIX #1: Reset window size explicitly to prevent Windows growth bug
+        mainWindow.setSize(PANEL_WIDTH, PANEL_HEIGHT);
       }
       isPanelVisible = false;
       
-      if (floatingButton && !floatingButton.isDestroyed()) {
+      // BUG FIX #3: Ensure button exists and recreate if needed
+      if (!floatingButton || floatingButton.isDestroyed()) {
+        createFloatingButton();
+      } else {
         floatingButton.show();
+        floatingButton.setAlwaysOnTop(true, 'floating');
         setTimeout(() => {
           if (floatingButton && !floatingButton.isDestroyed()) {
             floatingButton.focus();
@@ -232,15 +243,19 @@ function togglePanel() {
       }
     });
   } else {
+    // Show panel
     const visibleY = BUTTON_HEIGHT;
-    const panelX = buttonX - (PANEL_WIDTH / 2) + (BUTTON_WIDTH / 2);
+    const panelX = Math.floor(buttonX - (PANEL_WIDTH / 2) + (BUTTON_WIDTH / 2));
     const constrainedX = Math.max(0, Math.min(panelX, screenBounds.width - PANEL_WIDTH));
     
+    // BUG FIX #3: Hide button safely
     if (floatingButton && !floatingButton.isDestroyed()) {
       floatingButton.hide();
     }
     
     if (mainWindow && !mainWindow.isDestroyed()) {
+      // BUG FIX #1: Ensure window size is correct before showing
+      mainWindow.setSize(PANEL_WIDTH, PANEL_HEIGHT);
       mainWindow.show();
       slideWindow(mainWindow, constrainedX, visibleY, () => {
         isPanelVisible = true;
@@ -268,7 +283,9 @@ ipcMain.on('move-window', (event, screenX, screenY) => {
   const deltaX = screenX - dragStartPos.x;
   const newX = buttonStartPos.x + deltaX;
   const screenBounds = getScreenBounds();
-  const constrainedX = Math.max(0, Math.min(newX, screenBounds.width - BUTTON_WIDTH));
+  
+  // BUG FIX #2: Use Math.floor to prevent position drift
+  const constrainedX = Math.floor(Math.max(0, Math.min(newX, screenBounds.width - BUTTON_WIDTH)));
 
   floatingButton.setPosition(constrainedX, 0);
 });
@@ -280,8 +297,11 @@ ipcMain.on('button-drag-end', (event, position) => {
   if (!floatingButton || floatingButton.isDestroyed()) return;
   
   const [currentX, currentY] = floatingButton.getPosition();
-  buttonX = currentX;
-  floatingButton.setPosition(currentX, 0);
+  const screenBounds = getScreenBounds();
+  
+  // BUG FIX #2: Ensure final position is constrained and floored
+  buttonX = Math.floor(Math.max(0, Math.min(currentX, screenBounds.width - BUTTON_WIDTH)));
+  floatingButton.setPosition(buttonX, 0);
   
   if (floatingButton && !floatingButton.isDestroyed()) {
     floatingButton.webContents.send('edge-changed', 'top');
@@ -289,12 +309,48 @@ ipcMain.on('button-drag-end', (event, position) => {
 });
 
 ipcMain.on('toggle-panel', () => {
+  // Safety net: if mainWindow was somehow destroyed, recreate before toggling
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    createMainWindow();
+    // Give the window a moment to initialise before showing
+    setTimeout(togglePanel, 50);
+    return;
+  }
   togglePanel();
 });
 
 ipcMain.on('close-panel', () => {
-  if (isPanelVisible) {
-    togglePanel();
+  // Destroy and recreate mainWindow after closing so the next open always
+  // starts with a clean, correctly-sized window — preventing the growth bug.
+  const doClose = () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.destroy();
+      mainWindow = null;
+    }
+    isPanelVisible = false;
+    createMainWindow();
+
+    if (!floatingButton || floatingButton.isDestroyed()) {
+      createFloatingButton();
+    } else {
+      floatingButton.show();
+      floatingButton.setAlwaysOnTop(true, 'floating');
+      setTimeout(() => {
+        if (floatingButton && !floatingButton.isDestroyed()) {
+          floatingButton.focus();
+        }
+      }, 100);
+    }
+  };
+
+  if (isPanelVisible && mainWindow && !mainWindow.isDestroyed()) {
+    const screenBounds = getScreenBounds();
+    const hiddenY = -PANEL_HEIGHT;
+    const panelX = Math.floor(buttonX - (PANEL_WIDTH / 2) + (BUTTON_WIDTH / 2));
+    const constrainedX = Math.max(0, Math.min(panelX, screenBounds.width - PANEL_WIDTH));
+    slideWindow(mainWindow, constrainedX, hiddenY, doClose);
+  } else {
+    doClose();
   }
 });
 

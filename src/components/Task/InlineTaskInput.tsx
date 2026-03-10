@@ -64,6 +64,7 @@ export const InlineTaskInput: React.FC<InlineTaskInputProps> = ({
           onBlur={handleBlur}
           placeholder={placeholder}
           disabled={isSubmitting}
+          autoFocus
         />
       </div>
     </div>
