@@ -262,6 +262,7 @@ function App() {
       activeCategory={activeCategory} 
       onCategoryChange={setActiveCategory}
       userEmail={user.email || undefined}
+      userPhotoURL={user.photoURL}
       onSignOut={handleSignOut}
     >
       <CategoryView

@@ -9,6 +9,7 @@ interface LayoutProps {
   onCategoryChange: (category: TaskCategory) => void;
   children: React.ReactNode;
   userEmail?: string;
+  userPhotoURL?: string | null;
   onSignOut?: () => void;
 }
 
@@ -31,6 +32,7 @@ export const Layout: React.FC<LayoutProps> = ({
   onCategoryChange,
   children,
   userEmail,
+  userPhotoURL,
   onSignOut,
 }) => {
   const handleClosePanel = () => {
@@ -45,7 +47,7 @@ export const Layout: React.FC<LayoutProps> = ({
         <h1 className="layout__logo">WorkBook</h1>
         <div className="layout__header-actions">
           {userEmail && onSignOut && (
-            <UserProfile userEmail={userEmail} onSignOut={onSignOut} />
+            <UserProfile userEmail={userEmail} userPhotoURL={userPhotoURL} onSignOut={onSignOut} />
           )}
           <button 
             className="layout__close-button" 

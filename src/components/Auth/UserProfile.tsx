@@ -3,11 +3,13 @@ import './UserProfile.css';
 
 interface UserProfileProps {
   userEmail: string;
+  userPhotoURL?: string | null;
   onSignOut: () => void;
 }
 
-export const UserProfile: React.FC<UserProfileProps> = ({ userEmail, onSignOut }) => {
+export const UserProfile: React.FC<UserProfileProps> = ({ userEmail, userPhotoURL, onSignOut }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [imgError, setImgError] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Get initials from email
@@ -41,7 +43,17 @@ export const UserProfile: React.FC<UserProfileProps> = ({ userEmail, onSignOut }
         aria-label="User menu"
       >
         <div className="user-profile__avatar">
-          {getInitials(userEmail)}
+          {userPhotoURL && !imgError ? (
+            <img
+              src={userPhotoURL}
+              alt={userEmail}
+              className="user-profile__avatar-img"
+              onError={() => setImgError(true)}
+              referrerPolicy="no-referrer"
+            />
+          ) : (
+            getInitials(userEmail)
+          )}
         </div>
       </button>
 

@@ -74,7 +74,7 @@ function getScreenBounds() {
 
 function createFloatingButton() {
   const screenBounds = getScreenBounds();
-  buttonX = screenBounds.width - BUTTON_WIDTH - 10;
+  buttonX = screenBounds.width - BUTTON_WIDTH - 100;
 
   floatingButton = new BrowserWindow({
     width: BUTTON_WIDTH,
@@ -194,15 +194,24 @@ function slideWindow(window, targetX, targetY, callback) {
     const currentX = Math.round(startX + (targetX - startX) * easeProgress);
     const currentY = Math.round(startY + (targetY - startY) * easeProgress);
 
-    // Lock size on every frame to prevent Windows OS from inflating bounds during animation
-    window.setSize(PANEL_WIDTH, PANEL_HEIGHT);
-    window.setPosition(currentX, currentY);
+    try {
+      // Lock size on every frame to prevent Windows OS from inflating bounds during animation
+      window.setSize(PANEL_WIDTH, PANEL_HEIGHT);
+      window.setPosition(currentX, currentY);
+    } catch (e) {
+      // Window was destroyed between the isDestroyed() check and the native call
+      // (race condition on Linux) — abort animation cleanly
+      if (callback) callback();
+      return;
+    }
 
     if (frame < frames) {
       setTimeout(animate, 1000 / fps);
     } else {
-      window.setSize(PANEL_WIDTH, PANEL_HEIGHT);
-      window.setPosition(targetX, targetY);
+      try {
+        window.setSize(PANEL_WIDTH, PANEL_HEIGHT);
+        window.setPosition(targetX, targetY);
+      } catch (e) { /* same race, ignore */ }
       if (callback) callback();
     }
   };
