@@ -201,3 +201,36 @@
   opacity: 0.6;
   cursor: not-allowed;
 }
+
+.auth-screen__close-button {
+  position: absolute;
+  top: var(--space-lg);
+  right: var(--space-lg);
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.2);
+  border: 1.5px solid rgba(255, 255, 255, 0.3);
+  border-radius: var(--radius-sm);
+  color: white;
+  cursor: pointer;
+  transition: all var(--transition-base);
+  padding: 0;
+  backdrop-filter: blur(10px);
+}
+
+.auth-screen__close-button:hover {
+  background: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.5);
+  transform: scale(1.05);
+}
+
+.auth-screen__close-button:active {
+  transform: scale(0.95);
+}
+
+.auth-screen__close-button svg {
+  pointer-events: none;
+}

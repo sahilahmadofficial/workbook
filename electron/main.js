@@ -5,20 +5,17 @@ const url = require('url');
 let mainWindow;
 let floatingButton;
 let isPanelVisible = false;
-let currentEdge = 'right';  // Default edge position
+let buttonX = 0;
 
-// Window dimensions
 const PANEL_WIDTH = 400;
 const PANEL_HEIGHT = 700;
-const BUTTON_WIDTH = 30;
-const BUTTON_HEIGHT = 80;
+const BUTTON_WIDTH = 80;
+const BUTTON_HEIGHT = 30;
 
-// Dragging state
 let isDragging = false;
 let dragStartPos = { x: 0, y: 0 };
 let buttonStartPos = { x: 0, y: 0 };
 
-// Register a custom protocol BEFORE app is ready
 protocol.registerSchemesAsPrivileged([
   {
     scheme: 'app',
@@ -31,7 +28,6 @@ protocol.registerSchemesAsPrivileged([
   },
 ]);
 
-// Google OAuth popup handler
 function attachOAuthInterceptor(popupWindow) {
   popupWindow.webContents.on('will-redirect', (event, targetUrl) => {
     if (handleOAuthRedirect(targetUrl, popupWindow)) {
@@ -78,14 +74,13 @@ function getScreenBounds() {
 
 function createFloatingButton() {
   const screenBounds = getScreenBounds();
-  const centerY = Math.floor((screenBounds.height - BUTTON_HEIGHT) / 2);
-  const rightX = screenBounds.width - BUTTON_WIDTH;
+  buttonX = screenBounds.width - BUTTON_WIDTH - 10;
 
   floatingButton = new BrowserWindow({
     width: BUTTON_WIDTH,
     height: BUTTON_HEIGHT,
-    x: rightX,
-    y: centerY,
+    x: buttonX,
+    y: 0,
     frame: false,
     transparent: true,
     alwaysOnTop: true,
@@ -100,37 +95,31 @@ function createFloatingButton() {
   });
 
   floatingButton.loadFile(path.join(__dirname, 'button.html'));
-
-  floatingButton.on('closed', () => {
-    floatingButton = null;
-  });
+  floatingButton.on('closed', () => { floatingButton = null; });
 }
 
 function createMainWindow() {
   Menu.setApplicationMenu(null);
-
-  const screenBounds = getScreenBounds();
-  const hiddenX = screenBounds.width;
-  const centerY = Math.floor((screenBounds.height - PANEL_HEIGHT) / 2);
+  const hiddenY = -PANEL_HEIGHT;
 
   mainWindow = new BrowserWindow({
     width: PANEL_WIDTH,
     height: PANEL_HEIGHT,
-    x: hiddenX,
-    y: centerY,
+    x: buttonX - (PANEL_WIDTH / 2) + (BUTTON_WIDTH / 2),
+    y: hiddenY,
     frame: false,
     resizable: false,
     show: false,
     skipTaskbar: true,
-    alwaysOnTop: false,
+    alwaysOnTop: true,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
+      preload: path.join(__dirname, 'preload.js'),
     },
     backgroundColor: '#fafaf9',
   });
 
-  // Intercept window.open for OAuth
   mainWindow.webContents.setWindowOpenHandler((details) => {
     if (details.url.startsWith('https://accounts.google.com/')) {
       mainWindow.webContents.once('did-create-window', (popupWindow) => {
@@ -159,13 +148,9 @@ function createMainWindow() {
   const isDev = !app.isPackaged || process.argv.includes('--dev');
 
   if (isDev) {
-    mainWindow.loadURL('http://localhost:5173').catch((err) => {
-      console.error('Failed to load from dev server:', err);
-    });
+    mainWindow.loadURL('http://localhost:5173').catch(console.error);
   } else {
-    mainWindow.loadURL('app://workbook/index.html').catch((err) => {
-      console.error('Failed to load via app:// protocol:', err);
-    });
+    mainWindow.loadURL('app://workbook/index.html').catch(console.error);
   }
 
   mainWindow.webContents.on('before-input-event', (event, input) => {
@@ -184,7 +169,6 @@ function createMainWindow() {
   mainWindow.on('closed', () => { mainWindow = null; });
 }
 
-// Smooth slide animation
 function slideWindow(window, targetX, targetY, callback) {
   if (!window || window.isDestroyed()) {
     if (callback) callback();
@@ -205,7 +189,7 @@ function slideWindow(window, targetX, targetY, callback) {
 
     frame++;
     const progress = frame / frames;
-    const easeProgress = 1 - Math.pow(1 - progress, 3); // ease-out-cubic
+    const easeProgress = 1 - Math.pow(1 - progress, 3);
 
     const currentX = Math.round(startX + (targetX - startX) * easeProgress);
     const currentY = Math.round(startY + (targetY - startY) * easeProgress);
@@ -223,25 +207,21 @@ function slideWindow(window, targetX, targetY, callback) {
   animate();
 }
 
-// Toggle panel visibility
 function togglePanel() {
-  console.log('togglePanel called, isPanelVisible:', isPanelVisible);
-  
   if (!mainWindow || !floatingButton) return;
 
   const screenBounds = getScreenBounds();
-  const centerY = Math.floor((screenBounds.height - PANEL_HEIGHT) / 2);
 
   if (isPanelVisible) {
-    // Hide panel
-    const hiddenX = getHiddenPosForEdge(currentEdge, screenBounds);
-    slideWindow(mainWindow, hiddenX, centerY, () => {
+    const hiddenY = -PANEL_HEIGHT;
+    const panelX = buttonX - (PANEL_WIDTH / 2) + (BUTTON_WIDTH / 2);
+    
+    slideWindow(mainWindow, panelX, hiddenY, () => {
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.hide();
       }
       isPanelVisible = false;
       
-      // Show button
       if (floatingButton && !floatingButton.isDestroyed()) {
         floatingButton.show();
         setTimeout(() => {
@@ -252,84 +232,24 @@ function togglePanel() {
       }
     });
   } else {
-    // Show panel
-    const visibleX = getVisiblePosForEdge(currentEdge, screenBounds);
+    const visibleY = BUTTON_HEIGHT;
+    const panelX = buttonX - (PANEL_WIDTH / 2) + (BUTTON_WIDTH / 2);
+    const constrainedX = Math.max(0, Math.min(panelX, screenBounds.width - PANEL_WIDTH));
     
-    // Hide button first
     if (floatingButton && !floatingButton.isDestroyed()) {
       floatingButton.hide();
     }
     
-    // Show panel
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.show();
-      slideWindow(mainWindow, visibleX, centerY, () => {
+      slideWindow(mainWindow, constrainedX, visibleY, () => {
         isPanelVisible = true;
       });
     }
   }
 }
 
-function getHiddenPosForEdge(edge, screenBounds) {
-  switch(edge) {
-    case 'left': return -PANEL_WIDTH;
-    case 'right': return screenBounds.width;
-    case 'top': return 0;
-    case 'bottom': return 0;
-    default: return screenBounds.width;
-  }
-}
-
-function getVisiblePosForEdge(edge, screenBounds) {
-  switch(edge) {
-    case 'left': return 0;
-    case 'right': return screenBounds.width - PANEL_WIDTH;
-    case 'top': return 0;
-    case 'bottom': return 0;
-    default: return screenBounds.width - PANEL_WIDTH;
-  }
-}
-
-function snapToEdge(x, y) {
-  const screenBounds = getScreenBounds();
-  const centerX = x;
-  const centerY = y;
-  
-  // Calculate distances to each edge
-  const distLeft = centerX;
-  const distRight = screenBounds.width - centerX;
-  const distTop = centerY;
-  const distBottom = screenBounds.height - centerY;
-  
-  // Find closest edge
-  const minDist = Math.min(distLeft, distRight, distTop, distBottom);
-  
-  let edge, finalX, finalY;
-  
-  if (minDist === distRight) {
-    edge = 'right';
-    finalX = screenBounds.width - BUTTON_WIDTH;
-    finalY = Math.max(0, Math.min(centerY, screenBounds.height - BUTTON_HEIGHT));
-  } else if (minDist === distLeft) {
-    edge = 'left';
-    finalX = 0;
-    finalY = Math.max(0, Math.min(centerY, screenBounds.height - BUTTON_HEIGHT));
-  } else if (minDist === distTop) {
-    edge = 'top';
-    finalX = Math.max(0, Math.min(centerX, screenBounds.width - BUTTON_WIDTH));
-    finalY = 0;
-  } else {
-    edge = 'bottom';
-    finalX = Math.max(0, Math.min(centerX, screenBounds.width - BUTTON_WIDTH));
-    finalY = screenBounds.height - BUTTON_HEIGHT;
-  }
-  
-  return { edge, x: finalX, y: finalY };
-}
-
-// IPC Handlers
 ipcMain.on('button-drag-start', () => {
-  console.log('Drag start');
   isDragging = true;
   if (floatingButton && !floatingButton.isDestroyed()) {
     const [x, y] = floatingButton.getPosition();
@@ -346,40 +266,33 @@ ipcMain.on('move-window', (event, screenX, screenY) => {
   }
 
   const deltaX = screenX - dragStartPos.x;
-  const deltaY = screenY - dragStartPos.y;
-
   const newX = buttonStartPos.x + deltaX;
-  const newY = buttonStartPos.y + deltaY;
+  const screenBounds = getScreenBounds();
+  const constrainedX = Math.max(0, Math.min(newX, screenBounds.width - BUTTON_WIDTH));
 
-  floatingButton.setPosition(newX, newY);
+  floatingButton.setPosition(constrainedX, 0);
 });
 
 ipcMain.on('button-drag-end', (event, position) => {
-  console.log('Drag end');
   isDragging = false;
   dragStartPos = { x: 0, y: 0 };
   
   if (!floatingButton || floatingButton.isDestroyed()) return;
   
   const [currentX, currentY] = floatingButton.getPosition();
-  const snapped = snapToEdge(currentX, currentY);
+  buttonX = currentX;
+  floatingButton.setPosition(currentX, 0);
   
-  currentEdge = snapped.edge;
-  floatingButton.setPosition(snapped.x, snapped.y);
-  
-  // Notify button of edge change
   if (floatingButton && !floatingButton.isDestroyed()) {
-    floatingButton.webContents.send('edge-changed', snapped.edge);
+    floatingButton.webContents.send('edge-changed', 'top');
   }
 });
 
 ipcMain.on('toggle-panel', () => {
-  console.log('IPC: toggle-panel received');
   togglePanel();
 });
 
 ipcMain.on('close-panel', () => {
-  console.log('IPC: close-panel received');
   if (isPanelVisible) {
     togglePanel();
   }
@@ -387,7 +300,7 @@ ipcMain.on('close-panel', () => {
 
 ipcMain.on('get-edge', () => {
   if (floatingButton && !floatingButton.isDestroyed()) {
-    floatingButton.webContents.send('edge-changed', currentEdge);
+    floatingButton.webContents.send('edge-changed', 'top');
   }
 });
 

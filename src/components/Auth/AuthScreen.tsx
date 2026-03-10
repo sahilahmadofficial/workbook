@@ -9,6 +9,14 @@ interface AuthScreenProps {
   loading: boolean;
 }
 
+declare global {
+  interface Window {
+    electronAPI?: {
+      closePanel: () => void;
+    };
+  }
+}
+
 export const AuthScreen: React.FC<AuthScreenProps> = ({
   onSignIn,
   onSignUp,
@@ -20,6 +28,12 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [localError, setLocalError] = useState<string | null>(null);
+
+  const handleClosePanel = () => {
+    if (window.electronAPI && window.electronAPI.closePanel) {
+      window.electronAPI.closePanel();
+    }
+  };
 
   const validateForm = (): boolean => {
     setLocalError(null);
@@ -76,6 +90,17 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
 
   return (
     <div className="auth-screen">
+      <button 
+        className="auth-screen__close-button" 
+        onClick={handleClosePanel}
+        title="Close panel"
+        aria-label="Close panel"
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+        </svg>
+      </button>
+      
       <div className="auth-screen__container">
         <div className="auth-screen__header">
           <h1 className="auth-screen__logo">WorkBook</h1>
