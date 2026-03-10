@@ -84,18 +84,23 @@ function handleOAuthRedirect(targetUrl, popupWindow) {
 
 function getScreenBounds() {
   const primaryDisplay = screen.getPrimaryDisplay();
-  return primaryDisplay.workAreaSize;
+  return primaryDisplay.workArea; // includes x, y, width, height (workAreaSize only has width/height)
+}
+
+// Clamp panel X so it always stays fully within the screen work area
+function clampPanelX(x, screenBounds) {
+  return Math.max(screenBounds.x, Math.min(x, screenBounds.x + screenBounds.width - PANEL_WIDTH));
 }
 
 function createFloatingButton() {
   const screenBounds = getScreenBounds();
-  buttonX = screenBounds.width - BUTTON_WIDTH - 150;
+  buttonX = screenBounds.width - BUTTON_WIDTH - 100;
 
   floatingButton = new BrowserWindow({
     width: BUTTON_WIDTH,
     height: BUTTON_HEIGHT,
     x: buttonX,
-    y: 0,
+    y: screenBounds.y,
     frame: false,
     transparent: true,
     alwaysOnTop: true,
@@ -235,13 +240,16 @@ function togglePanel() {
   if (!mainWindow || mainWindow.isDestroyed()) return;
   
   const screenBounds = getScreenBounds();
+  // Center panel under the button, then clamp so it never leaves the screen
+  const panelX = clampPanelX(
+    Math.floor(buttonX - (PANEL_WIDTH / 2) + (BUTTON_WIDTH / 2)),
+    screenBounds
+  );
+  const visibleY  = screenBounds.y + BUTTON_HEIGHT;
+  const hiddenY   = screenBounds.y - PANEL_HEIGHT;
 
   if (isPanelVisible) {
-    const hiddenY = -PANEL_HEIGHT;
-    const panelX = Math.floor(buttonX - (PANEL_WIDTH / 2) + (BUTTON_WIDTH / 2));
-    const constrainedX = Math.max(0, Math.min(panelX, screenBounds.width - PANEL_WIDTH));
-    
-    slideWindow(mainWindow, constrainedX, hiddenY, () => {
+    slideWindow(mainWindow, panelX, hiddenY, () => {
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.hide();
         mainWindow.setSize(PANEL_WIDTH, PANEL_HEIGHT);
@@ -261,10 +269,6 @@ function togglePanel() {
       }
     });
   } else {
-    const visibleY = BUTTON_HEIGHT;
-    const panelX = Math.floor(buttonX - (PANEL_WIDTH / 2) + (BUTTON_WIDTH / 2));
-    const constrainedX = Math.max(0, Math.min(panelX, screenBounds.width - PANEL_WIDTH));
-    
     if (floatingButton && !floatingButton.isDestroyed()) {
       floatingButton.hide();
     }
@@ -272,7 +276,7 @@ function togglePanel() {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.setSize(PANEL_WIDTH, PANEL_HEIGHT);
       mainWindow.show();
-      slideWindow(mainWindow, constrainedX, visibleY, () => {
+      slideWindow(mainWindow, panelX, visibleY, () => {
         isPanelVisible = true;
       });
     }
@@ -298,9 +302,9 @@ ipcMain.on('move-window', (event, screenX, screenY) => {
   const deltaX = screenX - dragStartPos.x;
   const newX = buttonStartPos.x + deltaX;
   const screenBounds = getScreenBounds();
-  const constrainedX = Math.floor(Math.max(0, Math.min(newX, screenBounds.width - BUTTON_WIDTH)));
+  const constrainedX = Math.floor(Math.max(screenBounds.x, Math.min(newX, screenBounds.x + screenBounds.width - BUTTON_WIDTH)));
 
-  floatingButton.setPosition(constrainedX, 0);
+  floatingButton.setPosition(constrainedX, screenBounds.y);
 });
 
 ipcMain.on('button-drag-end', (event, position) => {
@@ -311,8 +315,8 @@ ipcMain.on('button-drag-end', (event, position) => {
   
   const [currentX, currentY] = floatingButton.getPosition();
   const screenBounds = getScreenBounds();
-  buttonX = Math.floor(Math.max(0, Math.min(currentX, screenBounds.width - BUTTON_WIDTH)));
-  floatingButton.setPosition(buttonX, 0);
+  buttonX = Math.floor(Math.max(screenBounds.x, Math.min(currentX, screenBounds.x + screenBounds.width - BUTTON_WIDTH)));
+  floatingButton.setPosition(buttonX, screenBounds.y);
   
   if (floatingButton && !floatingButton.isDestroyed()) {
     floatingButton.webContents.send('edge-changed', 'top');
@@ -352,10 +356,12 @@ ipcMain.on('close-panel', () => {
 
   if (isPanelVisible && mainWindow && !mainWindow.isDestroyed()) {
     const screenBounds = getScreenBounds();
-    const hiddenY = -PANEL_HEIGHT;
-    const panelX = Math.floor(buttonX - (PANEL_WIDTH / 2) + (BUTTON_WIDTH / 2));
-    const constrainedX = Math.max(0, Math.min(panelX, screenBounds.width - PANEL_WIDTH));
-    slideWindow(mainWindow, constrainedX, hiddenY, doClose);
+    const hiddenY = screenBounds.y - PANEL_HEIGHT;
+    const panelX = clampPanelX(
+      Math.floor(buttonX - (PANEL_WIDTH / 2) + (BUTTON_WIDTH / 2)),
+      screenBounds
+    );
+    slideWindow(mainWindow, panelX, hiddenY, doClose);
   } else {
     doClose();
   }
