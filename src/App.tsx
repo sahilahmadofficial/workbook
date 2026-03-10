@@ -7,6 +7,7 @@ import { Layout } from './components/Layout/Layout';
 import { CategoryView } from './components/CategoryView/CategoryView';
 import { ToastContainer } from './components/Toast/ToastContainer';
 import { AuthScreen } from './components/Auth/AuthScreen';
+import { Loader } from './components/Loader/Loader';
 import { ToastType } from './components/Toast/Toast';
 import { taskStorage, LocalTaskStorage } from './services/taskStorage';
 import { FirestoreTaskStorage } from './services/firestoreTaskStorage';
@@ -17,10 +18,6 @@ function App() {
   const { toasts, showToast, dismissToast, clearToasts } = useToast();
   const { user, loading: authLoading, error: authError, signIn, signUp, signInWithGoogle, signOut, pendingVerification, resendVerification } = useAuth();
   const prevUserRef = useRef(user);
-  // Track whether the app has completed its initial auth resolution.
-  // On first mount the auth state is restored from a persisted session —
-  // that should NOT show "Signed in successfully". Only explicit sign-in
-  // actions that happen after the initial load should show the toast.
   const authInitializedRef = useRef(false);
 
   const {
@@ -37,19 +34,14 @@ function App() {
     refreshTasks,
   } = useTasks();
 
-  // Clear toasts when a user signs in so notifications from the logged-out
-  // session (e.g. "Signed out successfully") don't bleed into the app.
   useEffect(() => {
     if (!authLoading) {
       if (!authInitializedRef.current) {
-        // First time auth resolves after mount — this is a session restore,
-        // not a user-initiated sign-in. Mark as initialized and skip the toast.
         authInitializedRef.current = true;
         prevUserRef.current = user;
         return;
       }
 
-      // Subsequent transitions: null → user means the user actively signed in.
       if (!prevUserRef.current && user) {
         clearToasts();
         showToast('Signed in successfully', ToastType.SUCCESS);
@@ -58,29 +50,22 @@ function App() {
     }
   }, [user, authLoading, clearToasts, showToast]);
 
-  // Switch storage based on authentication
   useEffect(() => {
     const switchStorage = async () => {
       if (user) {
-        // Use Firestore when authenticated
         try {
           console.log('Switching to Firestore storage for user:', user.uid);
           const firestoreStorage = new FirestoreTaskStorage(user.uid);
           (taskStorage as any).storage = firestoreStorage;
-          
-          // Refresh tasks after switching to Firestore
           await refreshTasks();
         } catch (error) {
           console.error('Failed to initialize Firestore storage:', error);
           showToast('Failed to connect to cloud storage', ToastType.ERROR);
         }
       } else {
-        // Use localStorage when not authenticated
         console.log('Using LocalStorage');
         const localStorage = new LocalTaskStorage();
         (taskStorage as any).storage = localStorage;
-        
-        // Refresh tasks after switching to LocalStorage
         await refreshTasks();
       }
     };
@@ -175,19 +160,8 @@ function App() {
     }
   };
 
-  // Show auth screen if not authenticated
   if (authLoading) {
-    return (
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        height: '100vh',
-        color: 'var(--color-text-secondary)',
-      }}>
-        Loading...
-      </div>
-    );
+    return <Loader fullScreen size="large" text="Loading..." />;
   }
 
   if (!user) {
@@ -208,17 +182,7 @@ function App() {
   }
 
   if (loading) {
-    return (
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        height: '100vh',
-        color: 'var(--color-text-secondary)',
-      }}>
-        Loading tasks...
-      </div>
-    );
+    return <Loader fullScreen size="large" text="Loading tasks..." />;
   }
 
   if (error) {

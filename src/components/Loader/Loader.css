@@ -1,0 +1,188 @@
+.loader {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100px;
+}
+
+.loader--fullscreen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  min-height: 100vh;
+  background: var(--color-bg);
+  backdrop-filter: blur(10px);
+  z-index: 9999;
+}
+
+.loader__container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-lg);
+}
+
+/* Sizes */
+.loader__container--small {
+  --loader-size: 24px;
+  --loader-text-size: 12px;
+}
+
+.loader__container--medium {
+  --loader-size: 40px;
+  --loader-text-size: 14px;
+}
+
+.loader__container--large {
+  --loader-size: 60px;
+  --loader-text-size: 16px;
+}
+
+/* Spinner variant */
+.loader__spinner {
+  width: var(--loader-size);
+  height: var(--loader-size);
+  animation: loader-rotate 2s linear infinite;
+}
+
+.loader__spinner-svg {
+  width: 100%;
+  height: 100%;
+  transform-origin: center;
+}
+
+.loader__spinner-circle {
+  stroke: url(#gradient);
+  stroke-dasharray: 1, 200;
+  stroke-dashoffset: 0;
+  stroke-linecap: round;
+  animation: loader-dash 1.5s ease-in-out infinite;
+}
+
+/* Add gradient definition dynamically via inline style or use CSS gradient */
+.loader__spinner-svg::before {
+  content: '';
+}
+
+/* Dots variant */
+.loader__dots {
+  display: flex;
+  gap: calc(var(--loader-size) / 6);
+  align-items: center;
+}
+
+.loader__dot {
+  width: calc(var(--loader-size) / 4);
+  height: calc(var(--loader-size) / 4);
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--color-accent), var(--color-future));
+  animation: loader-bounce 1.4s infinite ease-in-out both;
+}
+
+.loader__dot:nth-child(1) {
+  animation-delay: -0.32s;
+}
+
+.loader__dot:nth-child(2) {
+  animation-delay: -0.16s;
+}
+
+/* Pulse variant */
+.loader__pulse {
+  position: relative;
+  width: var(--loader-size);
+  height: var(--loader-size);
+}
+
+.loader__pulse-ring {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border: 3px solid var(--color-accent);
+  border-radius: 50%;
+  opacity: 1;
+  animation: loader-pulse 2s cubic-bezier(0, 0.2, 0.8, 1) infinite;
+}
+
+.loader__pulse-ring:nth-child(2) {
+  animation-delay: -1s;
+}
+
+/* Text */
+.loader__text {
+  font-size: var(--loader-text-size);
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  margin: 0;
+  animation: loader-fade 1.5s ease-in-out infinite;
+}
+
+/* Animations */
+@keyframes loader-rotate {
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes loader-dash {
+  0% {
+    stroke-dasharray: 1, 200;
+    stroke-dashoffset: 0;
+  }
+  50% {
+    stroke-dasharray: 90, 200;
+    stroke-dashoffset: -35px;
+  }
+  100% {
+    stroke-dashoffset: -125px;
+  }
+}
+
+@keyframes loader-bounce {
+  0%, 80%, 100% {
+    transform: scale(0);
+    opacity: 0.5;
+  }
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes loader-pulse {
+  0% {
+    transform: scale(0.8);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1.4);
+    opacity: 0;
+  }
+}
+
+@keyframes loader-fade {
+  0%, 100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* Gradient for spinner */
+.loader__spinner-circle {
+  stroke: var(--color-accent);
+  filter: drop-shadow(0 0 6px var(--color-accent-light));
+}
+
+/* Make spinner gradient */
+@supports (background: conic-gradient(from 0deg, red, blue)) {
+  .loader__spinner-circle {
+    stroke: var(--color-accent);
+    opacity: 0.8;
+  }
+}

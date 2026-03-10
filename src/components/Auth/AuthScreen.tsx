@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './AuthScreen.css';
 
 interface AuthScreenProps {
@@ -36,8 +36,15 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
   const [resendCooldown, setResendCooldown] = useState(0);
   const [resendSuccess, setResendSuccess] = useState(false);
 
+  // Clear local error when auth error changes (e.g., when user retries)
+  useEffect(() => {
+    if (error) {
+      setLocalError(null);
+    }
+  }, [error]);
+
   // Countdown timer for resend cooldown
-  React.useEffect(() => {
+  useEffect(() => {
     if (resendCooldown <= 0) return;
     const timer = setTimeout(() => setResendCooldown((c) => c - 1), 1000);
     return () => clearTimeout(timer);
@@ -98,7 +105,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
         await onSignIn(email, password);
       }
     } catch (err) {
-      // Error is handled by the hook
+      // Error is handled by the hook and displayed via error prop
     }
   };
 
@@ -107,7 +114,8 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
       setLocalError(null);
       await onSignInWithGoogle();
     } catch (err) {
-      // Error is handled by the hook
+      // Error is handled by the hook and displayed via error prop
+      // Loading state is already set to false in useAuth's finally block
     }
   };
 
@@ -296,6 +304,18 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
             className="auth-screen__button auth-screen__button--primary"
             disabled={loading}
           >
+            {loading && (
+              <svg className="auth-screen__button-spinner" width="16" height="16" viewBox="0 0 50 50">
+                <circle
+                  className="auth-screen__spinner-circle"
+                  cx="25"
+                  cy="25"
+                  r="20"
+                  fill="none"
+                  strokeWidth="5"
+                />
+              </svg>
+            )}
             {loading ? 'Please wait...' : isSignUp ? 'Create Account' : 'Sign In'}
           </button>
 

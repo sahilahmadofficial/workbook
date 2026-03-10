@@ -108,10 +108,7 @@ html, body {
 .button:hover .button__lines span:nth-child(2) { width: 14px; }
 .button:hover .button__lines span:nth-child(3) { width: 14px; }
 
-/* Panel open — lines animate to X-ish shape */
-.button.panel-open .button__lines span:nth-child(1) { width: 14px; }
-.button.panel-open .button__lines span:nth-child(2) { width: 6px;  background: rgba(255,255,255,0.30); }
-.button.panel-open .button__lines span:nth-child(3) { width: 14px; }
+
 
 /* Chevron */
 .button__chevron {
@@ -127,10 +124,4 @@ html, body {
 
 .button:hover .button__chevron {
   opacity: 1;
-}
-
-/* Panel open — chevron flips */
-.button.panel-open .button__chevron {
-  transform: rotate(-90deg);
-  opacity: 0.90;
 }
