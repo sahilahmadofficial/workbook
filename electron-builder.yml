@@ -1,0 +1,41 @@
+appId: com.workbook.app
+productName: WorkBook
+directories:
+  output: dist-electron
+files:
+  - dist/**/*
+  - electron/**/*
+mac:
+  category: public.app-category.productivity
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+    - target: portable
+      arch:
+        - x64
+  icon: build/icon.ico
+  signAndEditExecutable: false
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: WorkBook
+linux:
+  target:
+    - target: AppImage
+      arch:
+        - x64
+    - target: deb
+      arch:
+        - x64
+  category: Utility
+  maintainer: Sahil Ahmad <sahil.ahmad.dev@gmail.com>
+  executableArgs:
+    - --no-sandbox
+  desktop:
+    entry:
+      StartupWMClass: WorkBook
+  icon: build/icon.png

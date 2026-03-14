@@ -1,0 +1,174 @@
+📥 WORKBOOK INSTALLATION GUIDE
+===============================
+
+🔒 IMPORTANT: Windows Security Notice
+--------------------------------------
+WorkBook is safe and open source! Windows may show a security warning 
+because this app isn't code-signed yet (requires $75-400/year certificate 
+for indie developers).
+
+✅ Source code: https://github.com/sahilahmad6569/workbook
+
+
+📦 CHOOSE YOUR INSTALLATION METHOD
+-----------------------------------
+
+You have TWO options in this package:
+
+1️⃣  WorkBook-Setup-X.X.X.exe (RECOMMENDED)
+   ✓ Full installer with desktop shortcuts
+   ✓ Integrated with Windows programs
+   ✓ Easy uninstall from Control Panel
+   ✓ Auto-updates (future feature)
+   
+2️⃣  WorkBook-Portable-X.X.X.exe
+   ✓ No installation needed
+   ✓ Perfect for USB drives
+   ✓ Run from any folder
+   ✓ No admin rights required
+
+
+📥 METHOD 1: SETUP INSTALLER (Recommended)
+───────────────────────────────────────────
+
+1. Double-click WorkBook-Setup-X.X.X.exe
+
+2. If Windows blocks it:
+   → Click "More info"
+   → Click "Run anyway"
+
+3. Follow the installation wizard:
+   → Choose installation folder
+   → Select "Create desktop shortcut" (recommended)
+   → Click "Install"
+
+4. Launch from desktop shortcut or Start Menu
+
+5. Done! ✅
+
+
+📦 METHOD 2: PORTABLE EXECUTABLE
+─────────────────────────────────
+
+1. Copy WorkBook-Portable-X.X.X.exe to any folder
+   (Example: Desktop, Documents, or USB drive)
+
+2. Double-click to run
+
+3. If Windows blocks it:
+   → Click "More info"
+   → Click "Run anyway"
+
+4. (Optional) Create desktop shortcut:
+   → Right-click WorkBook-Portable-X.X.X.exe
+   → Send to → Desktop (create shortcut)
+
+5. Done! ✅
+
+
+🔓 PREVENT SECURITY WARNING (Optional)
+───────────────────────────────────────
+
+Before running either file:
+
+1. Right-click the .exe file
+2. Click "Properties"
+3. Check "Unblock" at the bottom
+4. Click "Apply" → "OK"
+5. Now run normally - no warning!
+
+
+🎯 FIRST RUN
+────────────
+
+On first launch, WorkBook will ask you to:
+• Sign up with email OR
+• Continue with Google
+
+Your tasks will sync across all your devices automatically!
+
+
+❓ TROUBLESHOOTING
+──────────────────
+
+Problem: "Windows protected your PC" message
+Solution: Click "More info" → "Run anyway"
+
+Problem: SmartScreen blocks download
+Solution: Click "Keep" in browser when downloading
+
+Problem: Antivirus flags it as suspicious
+Solution: Add WorkBook to antivirus exclusions
+          (It's safe - see source code link above)
+
+Problem: Setup installer won't start
+Solution: Right-click → Properties → Unblock → Apply
+
+Problem: Portable version won't start
+Solution: Make sure you're running the .exe directly,
+          not trying to extract it
+
+Problem: "Failed to connect to cloud storage"
+Solution: Check your internet connection
+          OR use offline mode (local storage only)
+
+
+🔄 UNINSTALLING
+───────────────
+
+If you used the Setup Installer:
+→ Control Panel → Programs → Uninstall WorkBook
+
+If you used the Portable version:
+→ Just delete the .exe file
+
+
+📧 SUPPORT
+──────────
+
+Having issues? Need help?
+
+🐛 Report bugs: https://github.com/sahilahmad6569/workbook/issues
+📧 Email: sahil.ahmad.dev@gmail.com
+💬 GitHub: @sahilahmad6569
+
+
+💡 WHY THE SECURITY WARNING?
+────────────────────────────
+
+Code signing certificates cost $75-400 per year. As an indie developer, 
+I'm working on getting free code signing through SignPath Foundation.
+
+For now:
+• The source code is public - you can review it anytime
+• The app is safe and doesn't access anything except your tasks
+• Thousands of indie apps have the same warning
+
+This warning will disappear once I obtain a certificate.
+
+
+🌟 FEATURES
+───────────
+
+✓ Task management across Past, Present, and Future
+✓ Drag-and-drop task reordering
+✓ Real-time cloud sync with Firebase
+✓ Offline mode with local storage
+✓ Google Sign-In support
+✓ Email verification for security
+✓ Clean, minimal interface
+✓ Cross-platform (Windows, Linux, macOS)
+
+
+✨ Thank you for using WorkBook!
+────────────────────────────────
+
+If you find it helpful, please:
+⭐ Star the project: https://github.com/sahilahmad6569/workbook
+📢 Share with friends
+💬 Leave feedback
+
+
+Version: 1.0.0
+Developer: Sahil Ahmad
+License: MIT (Free & Open Source)
