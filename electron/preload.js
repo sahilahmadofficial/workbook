@@ -6,9 +6,9 @@ const { contextBridge, ipcRenderer } = require('electron');
  */
 contextBridge.exposeInMainWorld('electronAPI', {
   // Button drag events
-  onButtonDragStart: () => ipcRenderer.send('button-drag-start'),
+  onButtonDragStart: (screenX) => ipcRenderer.send('button-drag-start', screenX),
   onButtonDragEnd: (position) => ipcRenderer.send('button-drag-end', position),
-  moveWindow: (x, y) => ipcRenderer.send('move-window', x, y),
+  moveWindow: (x) => ipcRenderer.send('move-window', x),
   
   // Panel toggle
   togglePanel: () => ipcRenderer.send('toggle-panel'),

@@ -5,9 +5,8 @@
 
 const button = document.getElementById('button');
 let isDragging = false;
-let dragJustEnded = false; // Guards against click firing right after drag ends
+let dragJustEnded = false;
 let dragStartX = 0;
-let rafPending = false;    // Throttles moveWindow IPC to one call per animation frame
 let panelOpen = false;
 
 // Click — toggle panel, but never if a drag just finished
@@ -20,43 +19,34 @@ button.addEventListener('click', () => {
 
 button.addEventListener('mousedown', (e) => {
   dragStartX = e.screenX;
-  // Y is intentionally not tracked — button movement is horizontal-only
   isDragging = false;
   dragJustEnded = false;
 
   const onMouseMove = (moveEvent) => {
     const deltaX = moveEvent.screenX - dragStartX;
 
-    // Only horizontal delta starts a drag — vertical movement does nothing
     if (Math.abs(deltaX) > 3) {
       if (!isDragging) {
         isDragging = true;
-        window.electronAPI.onButtonDragStart();
+        // Pass the cursor's screenX at drag start so main can anchor correctly
+        window.electronAPI.onButtonDragStart(dragStartX);
       }
 
-      // Throttle IPC to one call per animation frame to avoid flooding main process
-      if (!rafPending) {
-        rafPending = true;
-        const sx = moveEvent.screenX;
-        const sy = moveEvent.screenY;
-        requestAnimationFrame(() => {
-          window.electronAPI.moveWindow(sx, sy);
-          rafPending = false;
-        });
-      }
+      // Send every mousemove directly — no RAF throttle.
+      // RAF captures a stale screenX that no longer matches where the cursor
+      // actually is when the frame fires, causing the snap-back glitch.
+      window.electronAPI.moveWindow(moveEvent.screenX);
     }
   };
 
   const onMouseUp = (upEvent) => {
     document.removeEventListener('mousemove', onMouseMove);
     document.removeEventListener('mouseup', onMouseUp);
-    rafPending = false;
 
     if (isDragging) {
       isDragging = false;
       dragJustEnded = true;
       window.electronAPI.onButtonDragEnd({ x: upEvent.screenX, y: upEvent.screenY });
-      // Clear guard after the click event has had a chance to fire and be blocked
       setTimeout(() => { dragJustEnded = false; }, 0);
     }
   };

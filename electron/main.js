@@ -114,7 +114,6 @@ function createFloatingButton() {
 
   floatingButton.loadFile(path.join(__dirname, 'button.html'));
   
-  // Add context menu for right-click
   floatingButton.webContents.on('context-menu', (event, params) => {
     const { Menu, MenuItem } = require('electron');
     const menu = new Menu();
@@ -131,7 +130,6 @@ function createFloatingButton() {
     });
   });
   
-  // When button window closes, quit the entire app
   floatingButton.on('close', (event) => {
     if (!isQuitting) {
       event.preventDefault();
@@ -146,7 +144,8 @@ function createFloatingButton() {
 
 function createMainWindow() {
   Menu.setApplicationMenu(null);
-  const hiddenY = -PANEL_HEIGHT;
+  const screenBounds = getScreenBounds();
+  const hiddenY = screenBounds.y - PANEL_HEIGHT;
 
   mainWindow = new BrowserWindow({
     width: PANEL_WIDTH,
@@ -220,7 +219,9 @@ function slideWindow(window, targetX, targetY, callback) {
     if (callback) callback();
     return;
   }
-  
+
+  // Read current position AFTER setBounds has been called by the caller,
+  // so we always start from a known-good state.
   const [startX, startY] = window.getPosition();
   const duration = 300;
   const fps = 60;
@@ -241,8 +242,10 @@ function slideWindow(window, targetX, targetY, callback) {
     const currentY = Math.round(startY + (targetY - startY) * easeProgress);
 
     try {
-      window.setSize(PANEL_WIDTH, PANEL_HEIGHT);
-      window.setPosition(currentX, currentY);
+      // setBounds is atomic: sets x, y, width, height in one OS call.
+      // This prevents the DPR drift that happens when setSize and setPosition
+      // are called separately, where the OS re-applies scaling between calls.
+      window.setBounds({ x: currentX, y: currentY, width: PANEL_WIDTH, height: PANEL_HEIGHT });
     } catch (e) {
       if (callback) callback();
       return;
@@ -252,8 +255,7 @@ function slideWindow(window, targetX, targetY, callback) {
       setTimeout(animate, 1000 / fps);
     } else {
       try {
-        window.setSize(PANEL_WIDTH, PANEL_HEIGHT);
-        window.setPosition(targetX, targetY);
+        window.setBounds({ x: targetX, y: targetY, width: PANEL_WIDTH, height: PANEL_HEIGHT });
       } catch (e) { /* ignore */ }
       if (callback) callback();
     }
@@ -270,14 +272,14 @@ function togglePanel() {
     Math.floor(buttonX - (PANEL_WIDTH / 2) + (BUTTON_WIDTH / 2)),
     screenBounds
   );
-  const visibleY  = screenBounds.y + BUTTON_HEIGHT;
-  const hiddenY   = screenBounds.y - PANEL_HEIGHT;
+  const visibleY = screenBounds.y + BUTTON_HEIGHT;
+  const hiddenY  = screenBounds.y - PANEL_HEIGHT;
 
   if (isPanelVisible) {
     slideWindow(mainWindow, panelX, hiddenY, () => {
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.hide();
-        mainWindow.setSize(PANEL_WIDTH, PANEL_HEIGHT);
+        // No setSize here — setBounds inside slideWindow already locked the size.
       }
       isPanelVisible = false;
       
@@ -299,7 +301,9 @@ function togglePanel() {
     }
     
     if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.setSize(PANEL_WIDTH, PANEL_HEIGHT);
+      // Atomically reset position+size BEFORE show(), so the OS never sees
+      // the window at a wrong size and has no chance to "correct" it.
+      mainWindow.setBounds({ x: panelX, y: hiddenY, width: PANEL_WIDTH, height: PANEL_HEIGHT });
       mainWindow.show();
       slideWindow(mainWindow, panelX, visibleY, () => {
         isPanelVisible = true;
@@ -308,11 +312,9 @@ function togglePanel() {
   }
 }
 
-// Properly quit the app and clean up all windows
 function quitApp() {
   isQuitting = true;
   
-  // Close all windows
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.destroy();
     mainWindow = null;
@@ -323,31 +325,30 @@ function quitApp() {
     floatingButton = null;
   }
   
-  // Force quit the app
   app.quit();
   
-  // Extra safety: force exit if quit doesn't work
   setTimeout(() => {
     app.exit(0);
   }, 1000);
 }
 
-ipcMain.on('button-drag-start', () => {
+ipcMain.on('button-drag-start', (event, screenX) => {
   isDragging = true;
   if (floatingButton && !floatingButton.isDestroyed()) {
-    const [x, y] = floatingButton.getPosition();
-    buttonStartPos = { x, y };
-    dragStartPos = { x: 0, y: 0 };
+    // Store the window's current X and the exact cursor X at drag start.
+    // We'll compute delta from the last known cursor position each move,
+    // so there's no stale-origin accumulation.
+    const [x] = floatingButton.getPosition();
+    buttonStartPos = { x };
+    dragStartPos = { x: screenX };
   }
 });
 
-ipcMain.on('move-window', (event, screenX, screenY) => {
-  if (!floatingButton || floatingButton.isDestroyed()) return;
+ipcMain.on('move-window', (event, screenX) => {
+  if (!floatingButton || floatingButton.isDestroyed() || !isDragging) return;
 
-  if (dragStartPos.x === 0 && dragStartPos.y === 0) {
-    dragStartPos = { x: screenX, y: screenY };
-  }
-
+  // Delta from drag-start cursor to current cursor, applied to window start pos.
+  // This is stable regardless of how many IPC messages were skipped or throttled.
   const deltaX = screenX - dragStartPos.x;
   const newX = buttonStartPos.x + deltaX;
   const screenBounds = getScreenBounds();
@@ -382,11 +383,10 @@ ipcMain.on('toggle-panel', () => {
 });
 
 ipcMain.on('close-panel', () => {
-  // Just hide the panel, don't quit the app
   const doClose = () => {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.hide();
-      mainWindow.setSize(PANEL_WIDTH, PANEL_HEIGHT);
+      // No setSize here — size is already correct from the last setBounds call.
     }
     isPanelVisible = false;
 
@@ -438,7 +438,6 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', () => {
-  // Always quit when all windows closed
   quitApp();
 });
 
