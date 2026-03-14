@@ -6,6 +6,7 @@ let mainWindow;
 let floatingButton;
 let isPanelVisible = false;
 let buttonX = 0;
+let isQuitting = false;
 
 const PANEL_WIDTH = 400;
 const PANEL_HEIGHT = 700;
@@ -45,10 +46,8 @@ function attachOAuthInterceptor(popupWindow) {
     }
   });
 
-  // FIX: Detect when user closes popup with X button
   popupWindow.on('closed', () => {
     if (!authCompleted && mainWindow && !mainWindow.isDestroyed()) {
-      // User closed the popup without completing authentication
       const payload = JSON.stringify({ error: 'access_denied' });
       mainWindow.webContents
         .executeJavaScript(`(new BroadcastChannel('google-oauth')).postMessage(${payload});`)
@@ -84,10 +83,9 @@ function handleOAuthRedirect(targetUrl, popupWindow) {
 
 function getScreenBounds() {
   const primaryDisplay = screen.getPrimaryDisplay();
-  return primaryDisplay.workArea; // includes x, y, width, height (workAreaSize only has width/height)
+  return primaryDisplay.workArea;
 }
 
-// Clamp panel X so it always stays fully within the screen work area
 function clampPanelX(x, screenBounds) {
   return Math.max(screenBounds.x, Math.min(x, screenBounds.x + screenBounds.width - PANEL_WIDTH));
 }
@@ -115,7 +113,35 @@ function createFloatingButton() {
   });
 
   floatingButton.loadFile(path.join(__dirname, 'button.html'));
-  floatingButton.on('closed', () => { floatingButton = null; });
+  
+  // Add context menu for right-click
+  floatingButton.webContents.on('context-menu', (event, params) => {
+    const { Menu, MenuItem } = require('electron');
+    const menu = new Menu();
+    
+    menu.append(new MenuItem({
+      label: 'Quit WorkBook',
+      click: () => quitApp()
+    }));
+    
+    menu.popup({
+      window: floatingButton,
+      x: params.x,
+      y: params.y
+    });
+  });
+  
+  // When button window closes, quit the entire app
+  floatingButton.on('close', (event) => {
+    if (!isQuitting) {
+      event.preventDefault();
+      quitApp();
+    }
+  });
+  
+  floatingButton.on('closed', () => { 
+    floatingButton = null;
+  });
 }
 
 function createMainWindow() {
@@ -240,7 +266,6 @@ function togglePanel() {
   if (!mainWindow || mainWindow.isDestroyed()) return;
   
   const screenBounds = getScreenBounds();
-  // Center panel under the button, then clamp so it never leaves the screen
   const panelX = clampPanelX(
     Math.floor(buttonX - (PANEL_WIDTH / 2) + (BUTTON_WIDTH / 2)),
     screenBounds
@@ -281,6 +306,30 @@ function togglePanel() {
       });
     }
   }
+}
+
+// Properly quit the app and clean up all windows
+function quitApp() {
+  isQuitting = true;
+  
+  // Close all windows
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.destroy();
+    mainWindow = null;
+  }
+  
+  if (floatingButton && !floatingButton.isDestroyed()) {
+    floatingButton.destroy();
+    floatingButton = null;
+  }
+  
+  // Force quit the app
+  app.quit();
+  
+  // Extra safety: force exit if quit doesn't work
+  setTimeout(() => {
+    app.exit(0);
+  }, 1000);
 }
 
 ipcMain.on('button-drag-start', () => {
@@ -333,13 +382,13 @@ ipcMain.on('toggle-panel', () => {
 });
 
 ipcMain.on('close-panel', () => {
+  // Just hide the panel, don't quit the app
   const doClose = () => {
     if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.destroy();
-      mainWindow = null;
+      mainWindow.hide();
+      mainWindow.setSize(PANEL_WIDTH, PANEL_HEIGHT);
     }
     isPanelVisible = false;
-    createMainWindow();
 
     if (!floatingButton || floatingButton.isDestroyed()) {
       createFloatingButton();
@@ -373,6 +422,10 @@ ipcMain.on('get-edge', () => {
   }
 });
 
+app.on('before-quit', () => {
+  isQuitting = true;
+});
+
 app.whenReady().then(() => {
   protocol.handle('app', (request) => {
     const filePath = new URL(request.url).pathname;
@@ -385,7 +438,8 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit();
+  // Always quit when all windows closed
+  quitApp();
 });
 
 app.on('activate', () => {
