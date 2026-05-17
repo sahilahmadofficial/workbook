@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Task, TaskCategory } from '../../types';
+import React, { useState, useMemo } from 'react';
+import { Task, TaskCategory, Priority } from '../../types';
 import { TaskItem } from '../Task/TaskItem';
 import { InlineTaskInput } from '../Task/InlineTaskInput';
 import './CategoryView.css';
@@ -13,6 +13,7 @@ interface CategoryViewProps {
   onMoveToPresent: (id: string) => void;
   onDeleteTask: (id: string) => void;
   onUpdateTaskTitle: (id: string, title: string) => void;
+  onUpdatePriority?: (id: string, priority: Priority) => void;
   onReorderTasks: (category: TaskCategory, taskIds: string[]) => void;
 }
 
@@ -37,6 +38,7 @@ export const CategoryView: React.FC<CategoryViewProps> = ({
   onMoveToPresent,
   onDeleteTask,
   onUpdateTaskTitle,
+  onUpdatePriority,
   onReorderTasks,
 }) => {
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
@@ -46,13 +48,38 @@ export const CategoryView: React.FC<CategoryViewProps> = ({
     await onCreateTask(title, category);
   };
 
-  // Sort tasks by order field (if exists) or creation time
-  const sortedTasks = [...tasks].sort((a, b) => {
-    if (a.order !== undefined && b.order !== undefined) {
-      return a.order - b.order;
+  // Helper function to convert priority to sort order
+  const getPriorityValue = (priority?: Priority): number => {
+    switch (priority) {
+      case 'urgent': return 0;
+      case 'important': return 1;
+      default: return 2;
     }
-    return b.createdAt - a.createdAt;
-  });
+  };
+
+  // Sort tasks based on category
+  const sortedTasks = useMemo(() => {
+    if (category === TaskCategory.PRESENT) {
+      // For Present tab: sort by priority (urgent > important > normal), then by order or creation time
+      return [...tasks].sort((a, b) => {
+        const priorityDiff = getPriorityValue(a.priority) - getPriorityValue(b.priority);
+        if (priorityDiff !== 0) return priorityDiff;
+        // Same priority: use order if available, otherwise creation time (newer first? Keep existing logic: order asc, then newer first)
+        if (a.order !== undefined && b.order !== undefined) {
+          return a.order - b.order;
+        }
+        return b.createdAt - a.createdAt;
+      });
+    } else {
+      // For Past and Future tabs: keep original sorting (order then creation time)
+      return [...tasks].sort((a, b) => {
+        if (a.order !== undefined && b.order !== undefined) {
+          return a.order - b.order;
+        }
+        return b.createdAt - a.createdAt;
+      });
+    }
+  }, [tasks, category]);
 
   const showInput = category !== TaskCategory.PAST;
   const isDraggable = category === TaskCategory.PRESENT || category === TaskCategory.FUTURE;
@@ -157,6 +184,7 @@ export const CategoryView: React.FC<CategoryViewProps> = ({
               onMoveToPresent={onMoveToPresent}
               onDelete={onDeleteTask}
               onUpdateTitle={onUpdateTaskTitle}
+              onUpdatePriority={onUpdatePriority}
               draggable={isDraggable}
               onDragStart={() => handleDragStart(task.id)}
               onDragEnd={handleDragEnd}

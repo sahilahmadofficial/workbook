@@ -1,4 +1,4 @@
-import { Task, TaskCategory, CreateTaskDTO, UpdateTaskDTO } from '../types';
+import { Task, TaskCategory, CreateTaskDTO, UpdateTaskDTO, Priority } from '../types';
 import { taskStorage } from './taskStorage';
 
 /**
@@ -66,6 +66,15 @@ export class TaskService {
 
     const updates: UpdateTaskDTO = {
       title: title.trim(),
+      updatedAt: Date.now(),
+    };
+
+    return taskStorage.updateTask(id, updates);
+  }
+
+  async updateTaskPriority(id: string, priority: Priority): Promise<Task> {
+    const updates: UpdateTaskDTO = {
+      priority,
       updatedAt: Date.now(),
     };
 

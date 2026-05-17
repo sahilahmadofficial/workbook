@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Task, TaskCategory } from '../types';
+import { Task, TaskCategory, Priority } from '../types';
 import { taskService } from '../services/taskService';
 
 interface UseTasksReturn {
@@ -12,6 +12,7 @@ interface UseTasksReturn {
   moveToPresent: (id: string) => Promise<void>;
   deleteTask: (id: string) => Promise<void>;
   updateTaskTitle: (id: string, title: string) => Promise<void>;
+  updateTaskPriority: (id: string, priority: Priority) => Promise<void>;
   reorderTasks: (category: TaskCategory, taskIds: string[]) => Promise<void>;
   refreshTasks: () => Promise<void>;
 }
@@ -108,6 +109,17 @@ export function useTasks(): UseTasksReturn {
     }
   }, []);
 
+  const updateTaskPriority = useCallback(async (id: string, priority: Priority) => {
+    try {
+      setError(null);
+      const updatedTask = await taskService.updateTaskPriority(id, priority);
+      setTasks((prev) => prev.map((t) => (t.id === id ? updatedTask : t)));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update priority');
+      throw err;
+    }
+  }, []);
+
   const reorderTasks = useCallback(async (category: TaskCategory, taskIds: string[]) => {
     try {
       setError(null);
@@ -139,6 +151,7 @@ export function useTasks(): UseTasksReturn {
     moveToPresent,
     deleteTask,
     updateTaskTitle,
+    updateTaskPriority,
     reorderTasks,
     refreshTasks,
   };

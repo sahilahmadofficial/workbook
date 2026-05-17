@@ -4,6 +4,7 @@ import {
   UpdateTaskDTO,
   TaskCategory,
   ITaskStorage,
+  Priority,
 } from '../types';
 
 const STORAGE_KEY = 'workbook_tasks';
@@ -55,14 +56,17 @@ export class LocalTaskStorage implements ITaskStorage {
         return [];
       }
       
-      // Filter out any invalid tasks
+      // Filter out any invalid tasks and ensure priority defaults
       const validTasks = tasks.filter(task => 
         task && 
         typeof task.id === 'string' && 
         typeof task.title === 'string' &&
         typeof task.category === 'string' &&
         Object.values(TaskCategory).includes(task.category)
-      );
+      ).map(task => ({
+        ...task,
+        priority: task.priority || 'normal',  // default for old tasks
+      }));
       
       if (validTasks.length !== tasks.length) {
         console.warn(`Filtered out ${tasks.length - validTasks.length} invalid tasks`);
@@ -111,6 +115,7 @@ export class LocalTaskStorage implements ITaskStorage {
       id: crypto.randomUUID(),
       createdAt: Date.now(),
       updatedAt: Date.now(),
+      priority: dto.priority ?? 'normal',  // default priority
     };
 
     const tasks = this.readStorage();
@@ -170,7 +175,7 @@ export class LocalTaskStorage implements ITaskStorage {
       .map(id => taskMap.get(id))
       .filter((task): task is Task => task !== undefined);
     
-    // Update the order field for each task
+    // Update the order field for each task (preserve other fields including priority)
     const updatedCategoryTasks = reorderedCategoryTasks.map((task, index) => ({
       ...task,
       order: index,

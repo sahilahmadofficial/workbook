@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { TaskCategory } from './types';
+import { TaskCategory, Priority } from './types';
 import { useTasks } from './hooks/useTasks';
 import { useToast } from './hooks/useToast';
 import { useAuth } from './hooks/useAuth';
@@ -30,6 +30,7 @@ function App() {
     moveToPresent,
     deleteTask,
     updateTaskTitle,
+    updateTaskPriority,
     reorderTasks,
     refreshTasks,
   } = useTasks();
@@ -140,6 +141,15 @@ function App() {
     }
   };
 
+  const handleUpdatePriority = async (id: string, priority: Priority) => {
+    try {
+      await updateTaskPriority(id, priority);
+      showToast(`Priority set to ${priority}`, ToastType.SUCCESS);
+    } catch (error) {
+      showToast('Failed to update priority', ToastType.ERROR);
+    }
+  };
+
   const handleReorderTasks = async (category: TaskCategory, taskIds: string[]) => {
     try {
       console.log('Starting reorder...', { category, taskIds });
@@ -238,6 +248,7 @@ function App() {
         onMoveToPresent={handleMoveToPresent}
         onDeleteTask={handleDeleteTask}
         onUpdateTaskTitle={handleUpdateTaskTitle}
+        onUpdatePriority={handleUpdatePriority}
         onReorderTasks={handleReorderTasks}
       />
       <ToastContainer toasts={toasts} onDismiss={dismissToast} onDismissAll={clearToasts} />

@@ -8,6 +8,11 @@ export enum TaskCategory {
 }
 
 /**
+ * Priority levels for tasks (only used in Present tab for sorting)
+ */
+export type Priority = 'urgent' | 'important' | 'normal';
+
+/**
  * Core Task interface
  */
 export interface Task {
@@ -18,6 +23,7 @@ export interface Task {
   updatedAt: number;
   completedAt?: number;
   order?: number;
+  priority?: Priority;          // optional, defaults to 'normal' if not set
 }
 
 /**

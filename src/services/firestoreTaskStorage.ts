@@ -19,6 +19,7 @@ import {
   UpdateTaskDTO,
   TaskCategory,
   ITaskStorage,
+  Priority,
 } from '../types';
 
 /**
@@ -62,6 +63,7 @@ export class FirestoreTaskStorage implements ITaskStorage {
       updatedAt: this.convertTimestamp(data.updatedAt),
       completedAt: data.completedAt ? this.convertTimestamp(data.completedAt) : undefined,
       order: data.order,
+      priority: data.priority || 'normal',  // default to 'normal' if not set
     };
   }
 
@@ -117,6 +119,7 @@ export class FirestoreTaskStorage implements ITaskStorage {
         updatedAt: now,
         completedAt: dto.completedAt ? Timestamp.fromMillis(dto.completedAt) : null,
         order: dto.order ?? null,
+        priority: dto.priority ?? 'normal',
       };
 
       const docRef = await addDoc(tasksCollection, taskData);
@@ -129,6 +132,7 @@ export class FirestoreTaskStorage implements ITaskStorage {
         updatedAt: now.toMillis(),
         completedAt: dto.completedAt,
         order: dto.order,
+        priority: dto.priority ?? 'normal',
       };
     } catch (error) {
       console.error('Error creating task in Firestore:', error);
@@ -157,6 +161,11 @@ export class FirestoreTaskStorage implements ITaskStorage {
         updateData.completedAt = updates.completedAt 
           ? Timestamp.fromMillis(updates.completedAt)
           : null;
+      }
+
+      // Ensure priority is included if provided
+      if (updates.priority !== undefined) {
+        updateData.priority = updates.priority;
       }
 
       await updateDoc(taskRef, updateData);

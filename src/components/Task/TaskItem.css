@@ -8,6 +8,7 @@
   border-radius: var(--radius-md);
   transition: all var(--transition-base);
   box-shadow: var(--shadow-xs);
+  overflow: visible;
 }
 
 .task-item[draggable="true"] {
@@ -146,6 +147,7 @@
   align-items: center;
   gap: var(--space-xs);
   flex-shrink: 0;
+  overflow: visible;
 }
 
 .task-item__button {
@@ -182,4 +184,143 @@
 .task-item__button--delete:hover {
   color: var(--color-danger);
   background: var(--color-danger-light);
+}
+
+/* Priority dropdown - modern & compact */
+.priority-dropdown {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  overflow: visible;
+}
+
+.priority-dropdown__trigger {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  border: none;
+  padding: 4px 6px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  color: var(--color-text-secondary);
+  transition: all var(--transition-fast);
+  font-size: 12px;
+}
+
+.priority-dropdown__trigger:hover {
+  background: var(--color-bg);
+}
+
+.priority-indicator {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.priority-indicator--urgent {
+  background-color: #e74c3c;
+  box-shadow: 0 0 0 1px rgba(231, 76, 60, 0.2);
+}
+
+.priority-indicator--important {
+  background-color: #f39c12;
+  box-shadow: 0 0 0 1px rgba(243, 156, 18, 0.2);
+}
+
+.priority-indicator--normal {
+  background-color: #95a5a6;
+  box-shadow: 0 0 0 1px rgba(149, 165, 166, 0.2);
+}
+
+.priority-dropdown__chevron {
+  font-size: 8px;
+  transition: transform var(--transition-fast);
+}
+
+.priority-dropdown__menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  min-width: 130px;
+  z-index: 10000;
+  overflow: hidden;
+  animation: fadeIn 0.15s ease;
+}
+
+.priority-dropdown__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 12px;
+  background: transparent;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--color-text-primary);
+  transition: background var(--transition-fast);
+  position: relative;
+}
+
+.priority-dropdown__item:hover {
+  background: var(--color-bg);
+}
+
+.priority-dropdown__item--active {
+  background: var(--color-accent-light);
+  color: var(--color-accent);
+  font-weight: 500;
+}
+
+.priority-dropdown__item--active::after {
+  content: '✓';
+  position: absolute;
+  right: 12px;
+  font-size: 14px;
+  font-weight: normal;
+}
+
+.priority-dropdown__item::before {
+  content: '';
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.priority-dropdown__item[data-priority="urgent"]::before {
+  background-color: #e74c3c;
+}
+
+.priority-dropdown__item[data-priority="important"]::before {
+  background-color: #f39c12;
+}
+
+.priority-dropdown__item[data-priority="normal"]::before {
+  background-color: #95a5a6;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* When priority menu is open, raise the task item above others */
+.task-item--priority-menu-open {
+  position: relative;
+  z-index: 1000;
 }
