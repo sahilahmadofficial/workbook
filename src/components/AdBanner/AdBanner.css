@@ -1,9 +1,13 @@
 .ad-banner {
   flex-shrink: 0;
-  width: 100%;
+  width: calc(100% - (var(--space-xl) * 2)); /* Account for horizontal margin */
+  margin: var(--space-md) var(--space-xl) var(--space-md) var(--space-xl);
   background: var(--color-surface);
-  border-top: 1px solid var(--color-border);
-  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.04);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-sm);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  transition: all var(--transition-base);
 }
 
 .ad-banner__content {
@@ -11,7 +15,7 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-md);
-  padding: var(--space-md) var(--space-xl);
+  padding: var(--space-md) var(--space-lg);
   max-width: 100%;
   position: relative;
 }
@@ -66,11 +70,13 @@
   transform: translateY(0);
 }
 
-/* Premium upsell styles */
+/* Premium upsell styles – with margin and full rounding */
 .ad-banner--premium {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-top: none;
-  box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.1);
+  background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);
+  border: none;
+  box-shadow: var(--shadow-md);
+  border-radius: var(--radius-lg);
+  margin: var(--space-md) var(--space-xl) var(--space-md) var(--space-xl);
 }
 
 .ad-banner--premium .ad-banner__title {
