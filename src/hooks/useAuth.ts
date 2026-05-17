@@ -9,6 +9,7 @@ import {
   signInWithPopup,
   signInWithCredential,
   sendEmailVerification,
+  sendPasswordResetEmail,
 } from 'firebase/auth';
 import { auth } from '../config/firebase';
 
@@ -33,6 +34,7 @@ interface UseAuthReturn {
   signUp: (email: string, password: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
   resendVerification: () => Promise<void>;
   clearError: () => void;
 }
@@ -138,6 +140,20 @@ export function useAuth(): UseAuthReturn {
     }
   };
 
+  const resetPassword = async (email: string) => {
+    try {
+      setError(null);
+      setLoading(true);
+      await sendPasswordResetEmail(auth, email);
+    } catch (err: any) {
+      const msg = getErrorMessage(err.code);
+      setError(msg);
+      throw new Error(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const resendVerification = async () => {
     try {
       setError(null);
@@ -155,28 +171,11 @@ export function useAuth(): UseAuthReturn {
 
   const clearError = () => setError(null);
 
-  return { user, loading, error, pendingVerification, signIn, signUp, signInWithGoogle, signOut, resendVerification, clearError };
+  return { user, loading, error, pendingVerification, signIn, signUp, signInWithGoogle, signOut, resetPassword, resendVerification, clearError };
 }
 
 // ---------------------------------------------------------------------------
-// Electron Google Sign-In (PKCE loopback flow)
-//
-// REDIRECT URI STRATEGY:
-//   Web OAuth clients require an EXACT match on redirect_uri — including port.
-//   Random ports like http://127.0.0.1:49902 are rejected unless each one is
-//   pre-registered, which is impossible.
-//
-//   Solution: use a FIXED redirect URI with no port: http://127.0.0.1
-//   This is registered once in Google Cloud Console and always matches.
-//   main.js intercepts the navigation to 127.0.0.1 (any port) before Electron
-//   tries to load it, so no server is needed.
-//
-// .env setup:
-//   VITE_GOOGLE_CLIENT_ID=<web-client-id>.apps.googleusercontent.com
-//   VITE_GOOGLE_CLIENT_SECRET=<web-client-secret>
-//
-// Google Cloud Console → Web client → Authorised redirect URIs:
-//   http://127.0.0.1          ← add this (no port, no trailing slash)
+// Electron Google Sign-In (PKCE loopback flow) - unchanged
 // ---------------------------------------------------------------------------
 async function signInWithGoogleElectron(): Promise<void> {
   const CLIENT_ID     = import.meta.env['VITE_GOOGLE_CLIENT_ID'];
@@ -192,9 +191,6 @@ async function signInWithGoogleElectron(): Promise<void> {
     );
   }
 
-  // Fixed redirect URI — no port, registered exactly as-is in Google Cloud Console.
-  // main.js intercepts ANY navigation to 127.0.0.1 regardless of port,
-  // so this works without a listening server.
   const redirectUri = 'http://127.0.0.1';
 
   const codeVerifier  = generateCodeVerifier();
@@ -271,7 +267,6 @@ async function signInWithGoogleElectron(): Promise<void> {
 // ---------------------------------------------------------------------------
 // PKCE helpers
 // ---------------------------------------------------------------------------
-
 function generateCodeVerifier(): string {
   const array = new Uint8Array(64);
   crypto.getRandomValues(array);
@@ -294,7 +289,6 @@ function base64URLEncode(array: Uint8Array): string {
 // ---------------------------------------------------------------------------
 // Firebase error messages
 // ---------------------------------------------------------------------------
-
 function getErrorMessage(code: string): string {
   switch (code) {
     case 'auth/invalid-email':          return 'Invalid email address';

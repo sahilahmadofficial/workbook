@@ -16,7 +16,7 @@ import './styles/globals.css';
 function App() {
   const [activeCategory, setActiveCategory] = useState<TaskCategory>(TaskCategory.PRESENT);
   const { toasts, showToast, dismissToast, clearToasts } = useToast();
-  const { user, loading: authLoading, error: authError, signIn, signUp, signInWithGoogle, signOut, pendingVerification, resendVerification } = useAuth();
+  const { user, loading: authLoading, error: authError, signIn, signUp, signInWithGoogle, signOut, resetPassword, pendingVerification, resendVerification } = useAuth();
   const prevUserRef = useRef(user);
   const authInitializedRef = useRef(false);
 
@@ -182,6 +182,8 @@ function App() {
           onSignUp={signUp}
           onSignInWithGoogle={signInWithGoogle}
           onResendVerification={resendVerification}
+          onResetPassword={resetPassword}
+          onShowToast={showToast}
           error={authError}
           loading={authLoading}
           pendingVerification={pendingVerification}

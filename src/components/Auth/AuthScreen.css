@@ -314,6 +314,119 @@
   opacity: 0.8;
 }
 
+/* Forgot password link */
+.auth-screen__forgot-password {
+  text-align: right;
+  margin-top: calc(var(--space-xs) * -1);
+  margin-bottom: var(--space-md);
+}
+
+.auth-screen__forgot-link {
+  background: none;
+  border: none;
+  color: var(--color-accent);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 4px 0;
+  transition: opacity var(--transition-fast);
+}
+
+.auth-screen__forgot-link:hover {
+  opacity: 0.8;
+  text-decoration: underline;
+}
+
+/* Modal overlay */
+.auth-screen__modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.auth-screen__modal {
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  padding: var(--space-xl);
+  width: 90%;
+  max-width: 400px;
+  position: relative;
+  box-shadow: var(--shadow-lg);
+}
+
+.auth-screen__modal-close {
+  position: absolute;
+  top: var(--space-md);
+  right: var(--space-md);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--color-text-secondary);
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+}
+
+.auth-screen__modal-close:hover {
+  background: var(--color-bg);
+}
+
+.auth-screen__modal-title {
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: var(--space-md);
+  color: var(--color-text-primary);
+}
+
+.auth-screen__modal-text {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-lg);
+}
+
+.auth-screen__modal-input {
+  width: 100%;
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  font-size: 14px;
+  margin-bottom: var(--space-md);
+}
+
+.auth-screen__modal-input:focus {
+  outline: none;
+  border-color: var(--color-accent);
+}
+
+.auth-screen__modal-error {
+  margin-bottom: var(--space-md);
+}
+
+.auth-screen__modal-success {
+  text-align: center;
+  padding: var(--space-lg) 0;
+}
+
+.auth-screen__modal-success svg {
+  color: var(--color-success);
+  margin-bottom: var(--space-md);
+}
+
+.auth-screen__modal-success p {
+  color: var(--color-text-primary);
+  font-size: 14px;
+}
+
 @keyframes auth-spinner-rotate {
   100% {
     transform: rotate(360deg);

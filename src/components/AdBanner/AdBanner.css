@@ -13,11 +13,12 @@
   gap: var(--space-md);
   padding: var(--space-md) var(--space-xl);
   max-width: 100%;
+  position: relative;
 }
 
 .ad-banner__icon {
   flex-shrink: 0;
-  font-size: 20px;
+  font-size: 24px;
 }
 
 .ad-banner__text {
@@ -65,11 +66,45 @@
   transform: translateY(0);
 }
 
-/* Dummy ad styling */
-.ad-banner--dummy {
-  background: linear-gradient(135deg, #f5f7fa 0%, #ffffff 100%);
+/* Premium upsell styles */
+.ad-banner--premium {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-top: none;
+  box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.1);
 }
 
-.ad-banner--dummy .ad-banner__content {
-  opacity: 0.85;
+.ad-banner--premium .ad-banner__title {
+  color: white;
+}
+
+.ad-banner--premium .ad-banner__subtitle {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.ad-banner__cta--premium {
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.ad-banner__cta--premium:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: translateY(-1px);
+}
+
+.ad-banner__close {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  font-size: 16px;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-fast);
+  line-height: 1;
+}
+
+.ad-banner__close:hover {
+  color: white;
+  background: rgba(255, 255, 255, 0.1);
 }

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import './AdBanner.css';
 
 interface AdBannerProps {
@@ -6,25 +6,34 @@ interface AdBannerProps {
 }
 
 export const AdBanner: React.FC<AdBannerProps> = ({ isDummy = true }) => {
-  if (isDummy) {
-    return (
-      <div className="ad-banner ad-banner--dummy">
-        <div className="ad-banner__content">
-          <div className="ad-banner__icon">📢</div>
-          <div className="ad-banner__text">
-            <span className="ad-banner__title">Advertisement Space</span>
-            <span className="ad-banner__subtitle">Your ad could be here</span>
-          </div>
-          <button className="ad-banner__cta">Learn More</button>
-        </div>
-      </div>
-    );
+  const [isClosed, setIsClosed] = useState(false);
+
+  if (isClosed) {
+    return null;
   }
 
-  // Real ad implementation would go here
+  // Premium upsell banner
   return (
-    <div className="ad-banner">
-      {/* AdSense or other ad network code */}
+    <div className="ad-banner ad-banner--premium">
+      <div className="ad-banner__content">
+        <div className="ad-banner__icon">✨</div>
+        <div className="ad-banner__text">
+          <span className="ad-banner__title">WorkBook Premium</span>
+          <span className="ad-banner__subtitle">
+            Unlimited tasks • Cloud sync • Priority support
+          </span>
+        </div>
+        <button className="ad-banner__cta ad-banner__cta--premium">
+          Upgrade
+        </button>
+        <button
+          className="ad-banner__close"
+          onClick={() => setIsClosed(true)}
+          aria-label="Close"
+        >
+          ✕
+        </button>
+      </div>
     </div>
   );
 };

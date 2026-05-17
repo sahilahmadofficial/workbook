@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { ToastType } from '../Toast/Toast';
 import './AuthScreen.css';
 
 interface AuthScreenProps {
@@ -6,6 +7,8 @@ interface AuthScreenProps {
   onSignUp: (email: string, password: string) => Promise<void>;
   onSignInWithGoogle: () => Promise<void>;
   onResendVerification: () => Promise<void>;
+  onResetPassword: (email: string) => Promise<void>;
+  onShowToast?: (message: string, type: ToastType) => void;
   error: string | null;
   loading: boolean;
   pendingVerification: boolean;
@@ -24,6 +27,8 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
   onSignUp,
   onSignInWithGoogle,
   onResendVerification,
+  onResetPassword,
+  onShowToast,
   error,
   loading,
   pendingVerification,
@@ -35,6 +40,13 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
   const [showPassword, setShowPassword] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
   const [resendSuccess, setResendSuccess] = useState(false);
+
+  // Reset password modal state
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetSent, setResetSent] = useState(false);
+  const [resetError, setResetError] = useState<string | null>(null);
+  const [resetLoading, setResetLoading] = useState(false);
 
   // Clear local error when auth error changes (e.g., when user retries)
   useEffect(() => {
@@ -115,13 +127,47 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
       await onSignInWithGoogle();
     } catch (err) {
       // Error is handled by the hook and displayed via error prop
-      // Loading state is already set to false in useAuth's finally block
+    }
+  };
+
+  const handleResetPassword = async () => {
+    if (!resetEmail.trim() || !resetEmail.includes('@')) {
+      setResetError('Please enter a valid email address');
+      return;
+    }
+    setResetLoading(true);
+    setResetError(null);
+    try {
+      await onResetPassword(resetEmail);
+      setResetSent(true);
+      // Show toast notification
+      if (onShowToast) {
+        onShowToast('Password reset link sent successfully! Check your inbox.', ToastType.SUCCESS);
+      }
+      setTimeout(() => {
+        setShowResetModal(false);
+        setResetSent(false);
+        setResetEmail('');
+        setResetError(null);
+      }, 3000);
+    } catch (err) {
+      setResetError(err instanceof Error ? err.message : 'Failed to send reset email');
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
+  // Handle Enter key in reset email input
+  const handleResetKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && !resetLoading && !resetSent) {
+      e.preventDefault();
+      handleResetPassword();
     }
   };
 
   const displayError = error || localError;
 
-  // ── Verification pending screen ──────────────────────────────────────────
+  // ── Verification pending screen ──
   if (pendingVerification) {
     return (
       <div className="auth-screen">
@@ -195,8 +241,8 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
       </div>
     );
   }
-  // ────────────────────────────────────────────────────────────────────────
 
+  // ── Main auth form ──
   return (
     <div className="auth-screen">
       <button 
@@ -270,6 +316,19 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
               </button>
             </div>
           </div>
+
+          {/* Forgot password link (only on sign in) */}
+          {!isSignUp && (
+            <div className="auth-screen__forgot-password">
+              <button
+                type="button"
+                className="auth-screen__forgot-link"
+                onClick={() => setShowResetModal(true)}
+              >
+                Forgot password?
+              </button>
+            </div>
+          )}
 
           {displayError && (
             <div className="auth-screen__error">
@@ -366,6 +425,68 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
           </div>
         </form>
       </div>
+
+      {/* Reset Password Modal */}
+      {showResetModal && (
+        <div className="auth-screen__modal-overlay" onClick={() => {
+          setShowResetModal(false);
+          setResetSent(false);
+          setResetError(null);
+          setResetEmail('');
+        }}>
+          <div className="auth-screen__modal" onClick={(e) => e.stopPropagation()}>
+            <button
+              className="auth-screen__modal-close"
+              onClick={() => {
+                setShowResetModal(false);
+                setResetSent(false);
+                setResetError(null);
+                setResetEmail('');
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+              </svg>
+            </button>
+            <h3 className="auth-screen__modal-title">Reset Password</h3>
+            {!resetSent ? (
+              <>
+                <p className="auth-screen__modal-text">
+                  Enter your email address and we'll send you a link to reset your password.
+                </p>
+                <input
+                  type="email"
+                  className="auth-screen__modal-input"
+                  placeholder="you@example.com"
+                  value={resetEmail}
+                  onChange={(e) => setResetEmail(e.target.value)}
+                  onKeyDown={handleResetKeyDown}
+                  autoFocus
+                />
+                {resetError && (
+                  <div className="auth-screen__error auth-screen__modal-error">
+                    {resetError}
+                  </div>
+                )}
+                <button
+                  className="auth-screen__button auth-screen__button--primary"
+                  onClick={handleResetPassword}
+                  disabled={resetLoading}
+                >
+                  {resetLoading ? 'Sending...' : 'Send Reset Email'}
+                </button>
+              </>
+            ) : (
+              <div className="auth-screen__modal-success">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+                  <path d="M20 6L9 17L4 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                <p>Reset email sent! Check your inbox.</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
